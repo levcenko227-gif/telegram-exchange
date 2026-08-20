@@ -1,6 +1,6 @@
 {
   "name": "telegram-exchange-app",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Telegram Mini App - Обменник USDT на рубли",
   "main": "server.js",
   "engines": {
