@@ -477,20 +477,26 @@ app.post('/api/admin/2fa/setup', isAdminAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/2fa/verify', isAdminAuth, (req, res) => {
-  const { code } = req.body;
+app.post('/api/admin/change-password', isAdminAuth, (req, res) => {
+  const { current_password, new_password, new_username } = req.body;
+
   const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.session.adminId);
 
-  if (!admin.totp_secret) {
-    return res.status(400).json({ error: 'Сначала настройте 2FA' });
+  if (!bcrypt.compareSync(current_password, admin.password_hash)) {
+    return res.status(400).json({ error: 'Неверный текущий пароль' });
   }
 
-  const verified = speakeasy.totp.verify({
-    secret: admin.totp_secret,
-    encoding: 'base32',
-    token: code,
-    window: 2
-  });
+  if (new_password && new_password.length >= 6) {
+    const hash = bcrypt.hashSync(new_password, 10);
+    db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(hash, req.session.adminId);
+  }
 
-  if (verified) {
-    db.prepare('UPDATE admin_users SET 
+  if (new_username && new_username.length >= 3) {
+    const existing = db.prepare('SELECT id FROM admin_users WHERE username = ? AND id != ?').get(new_username, req.session.adminId);
+    if (existing) return res.status(400).json({ error: 'Этот логин уже занят' });
+    db.prepare('UPDATE admin_users SET username = ? WHERE id = ?').run(new_username, req.session.adminId);
+    req.session.adminUsername = new_username;
+  }
+
+  res.json({ success: true, message: 'Данные обновлены' });
+});
