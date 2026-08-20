@@ -9,107 +9,156 @@
 </head>
 <body>
     <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <span class="logo-icon">💱</span>
-                    <span class="logo-text">Exchange</span>
-                </div>
-                <div class="user-info">
-                    <span id="user-balance" class="balance">0.00 ₽</span>
-                    <button id="btn-profile" class="btn-icon" onclick="showProfile()">👤</button>
-                </div>
-            </div>
-        </header>
+        <!-- AUTH SCREEN -->
+        <div id="auth-screen">
+            <div class="auth-container">
+                <div class="auth-logo">💱</div>
+                <h1>Exchange</h1>
+                <p>Обмен USDT на рубли</p>
 
-        <!-- Main Content -->
-        <main class="main">
-            <!-- Exchange Rate Card -->
-            <div class="card rate-card">
-                <div class="rate-label">Текущий курс</div>
-                <div class="rate-value" id="current-rate">--</div>
-                <div class="rate-details">
-                    <span>Базовый: <span id="base-rate">--</span> ₽</span>
-                    <span>Наценка: <span id="markup">--</span>%</span>
+                <!-- Login Form -->
+                <div id="login-form" class="auth-form">
+                    <h2>Вход</h2>
+                    <div class="form-group">
+                        <label>Логин</label>
+                        <input type="text" id="login-username" placeholder="Ваш логин">
+                    </div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="login-password" placeholder="Ваш пароль">
+                    </div>
+                    <div class="form-group" id="login-2fa-group" style="display:none;">
+                        <label>Код 2FA</label>
+                        <input type="text" id="login-totp" placeholder="000000" maxlength="6">
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="handleLogin()">Войти</button>
+                    <div id="login-error" class="error-msg" style="display:none;"></div>
+                    <p class="auth-switch">Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
                 </div>
-            </div>
 
-            <!-- Exchange Form -->
-            <div class="card" id="exchange-section">
-                <h2 class="card-title">Обмен USDT → RUB</h2>
-                <div class="form-group">
-                    <label>Сумма USDT (TRC-20)</label>
-                    <div class="input-wrapper">
-                        <input type="number" id="amount-usdt" placeholder="0.00" min="10" step="0.01">
-                        <span class="input-suffix">USDT</span>
+                <!-- Register Form -->
+                <div id="register-form" class="auth-form" style="display:none;">
+                    <h2>Регистрация</h2>
+                    <div class="form-group">
+                        <label>Логин</label>
+                        <input type="text" id="reg-username" placeholder="Придумайте логин">
                     </div>
-                    <div class="min-amount">Минимум: <span id="min-amount">10</span> USDT</div>
+                    <div class="form-group">
+                        <label>Пароль</label>
+                        <input type="password" id="reg-password" placeholder="Придумайте пароль">
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="handleRegister()">Зарегистрироваться</button>
+                    <div id="reg-error" class="error-msg" style="display:none;"></div>
+                    <p class="auth-switch">Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
                 </div>
-                <div class="exchange-preview" id="exchange-preview" style="display: none;">
-                    <div class="preview-row">
-                        <span>Вы получите:</span>
-                        <span id="preview-rub" class="highlight">0.00 ₽</span>
-                    </div>
-                    <div class="preview-row">
-                        <span>Курс:</span>
-                        <span id="preview-rate">--</span>
-                    </div>
-                </div>
-                <button class="btn btn-primary btn-full" id="btn-exchange" onclick="createExchange()">
-                    Обменять
-                </button>
             </div>
+        </div>
 
-            <!-- Wallet Section -->
-            <div class="card" id="wallet-section" style="display: none;">
-                <h2 class="card-title">Отправьте USDT</h2>
-                <div class="wallet-address">
-                    <label>Адрес TRC-20 кошелька:</label>
-                    <div class="address-box">
-                        <code id="wallet-address">--</code>
-                        <button class="btn-copy" onclick="copyAddress()">📋</button>
+        <!-- MAIN APP -->
+        <div id="main-app" style="display:none;">
+            <header class="header">
+                <div class="header-content">
+                    <div class="logo">
+                        <span class="logo-icon">💱</span>
+                        <span class="logo-text">Exchange</span>
+                    </div>
+                    <div class="user-info">
+                        <span id="user-balance" class="balance">0.00 ₽</span>
+                        <button class="btn-icon" onclick="showProfile()">👤</button>
                     </div>
                 </div>
-                <div class="warning-box">
-                    <span class="warning-icon">⚠️</span>
-                    <div>
-                        <strong>Важно!</strong>
-                        <p>Отправляйте только USDT в сети TRC-20. Другие сети не поддерживаются.</p>
-                    </div>
-                </div>
-                <div class="transaction-details" id="transaction-details">
-                    <div class="detail-row">
-                        <span>Сумма к отправке:</span>
-                        <span id="send-amount">-- USDT</span>
-                    </div>
-                    <div class="detail-row">
-                        <span>Вы получите:</span>
-                        <span id="receive-amount">-- ₽</span>
-                    </div>
-                </div>
-                <button class="btn btn-primary btn-full" onclick="confirmSent()">
-                    Я отправил USDT
-                </button>
-                <button class="btn btn-secondary btn-full" onclick="cancelExchange()">
-                    Отменить
-                </button>
-            </div>
+            </header>
 
-            <!-- Transactions History -->
-            <div class="card" id="history-section">
-                <h2 class="card-title">История операций</h2>
-                <div id="transactions-list" class="transactions-list">
-                    <div class="empty-state">
-                        <span class="empty-icon">📊</span>
-                        <p>Пока нет операций</p>
+            <main class="main">
+                <!-- Dashboard Stats -->
+                <div class="stats-row">
+                    <div class="stat-mini">
+                        <div class="stat-mini-label">Оборот USDT</div>
+                        <div class="stat-mini-value" id="stat-usdt">0.00</div>
+                    </div>
+                    <div class="stat-mini">
+                        <div class="stat-mini-label">Получено ₽</div>
+                        <div class="stat-mini-value" id="stat-rub">0.00</div>
                     </div>
                 </div>
-            </div>
-        </main>
+
+                <!-- Rate Card -->
+                <div class="card rate-card">
+                    <div class="rate-label">Текущий курс</div>
+                    <div class="rate-value" id="current-rate">--</div>
+                    <div class="rate-details">
+                        <span>Базовый: <span id="base-rate">--</span> ₽</span>
+                        <span>Наценка: <span id="markup">--</span>%</span>
+                    </div>
+                    <button class="btn btn-small btn-refresh" onclick="loadRate()">🔄 Обновить</button>
+                </div>
+
+                <!-- Exchange Form -->
+                <div class="card" id="exchange-section">
+                    <h2 class="card-title">Обмен USDT → RUB</h2>
+                    <div class="form-group">
+                        <label>Сумма USDT (TRC-20)</label>
+                        <div class="input-wrapper">
+                            <input type="number" id="amount-usdt" placeholder="0.00" min="10" step="0.01" oninput="calcPreview()">
+                            <span class="input-suffix">USDT</span>
+                        </div>
+                        <div class="min-amount">Минимум: <span id="min-amount">10</span> USDT</div>
+                    </div>
+                    <div class="exchange-preview" id="exchange-preview" style="display:none;">
+                        <div class="preview-row">
+                            <span>Вы получите:</span>
+                            <span id="preview-rub" class="highlight">0.00 ₽</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="createExchange()">Обменять</button>
+                </div>
+
+                <!-- Wallet Section -->
+                <div class="card" id="wallet-section" style="display:none;">
+                    <h2 class="card-title">Отправьте USDT</h2>
+                    <div class="wallet-address">
+                        <label>Адрес TRC-20:</label>
+                        <div class="address-box">
+                            <code id="wallet-address">--</code>
+                            <button class="btn-copy" onclick="copyAddress()">📋</button>
+                        </div>
+                    </div>
+                    <div class="warning-box">
+                        <span class="warning-icon">⚠️</span>
+                        <div>
+                            <strong>Важно!</strong>
+                            <p>Отправляйте только USDT в сети TRC-20!</p>
+                        </div>
+                    </div>
+                    <div class="transaction-details">
+                        <div class="detail-row">
+                            <span>К отправке:</span>
+                            <span id="send-amount">-- USDT</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Получите:</span>
+                            <span id="receive-amount">-- ₽</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="confirmSent()">Я отправил USDT</button>
+                    <button class="btn btn-secondary btn-full" onclick="cancelExchange()" style="margin-top:10px;">Отменить</button>
+                </div>
+
+                <!-- History -->
+                <div class="card">
+                    <h2 class="card-title">История операций</h2>
+                    <div id="transactions-list" class="transactions-list">
+                        <div class="empty-state">
+                            <span class="empty-icon">📊</span>
+                            <p>Пока нет операций</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
 
         <!-- Profile Modal -->
-        <div id="profile-modal" class="modal" style="display: none;">
+        <div id="profile-modal" class="modal" style="display:none;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Профиль</h2>
@@ -121,14 +170,25 @@
                         <div class="profile-name" id="profile-name">--</div>
                         <div class="profile-id" id="profile-id">--</div>
                     </div>
-                    
+
+                    <div class="profile-section">
+                        <h3>Смена пароля</h3>
+                        <div class="form-group">
+                            <input type="password" id="current-pass" placeholder="Текущий пароль">
+                        </div>
+                        <div class="form-group">
+                            <input type="password" id="new-pass" placeholder="Новый пароль">
+                        </div>
+                        <button class="btn btn-small btn-primary" onclick="changePassword()">Сменить пароль</button>
+                    </div>
+
                     <div class="profile-section">
                         <h3>Безопасность</h3>
                         <div class="security-item">
                             <div class="security-info">
                                 <span class="security-icon">🔐</span>
                                 <div>
-                                    <div class="security-title">Двухфакторная аутентификация</div>
+                                    <div class="security-title">2FA аутентификация</div>
                                     <div class="security-status" id="2fa-status">Не подключена</div>
                                 </div>
                             </div>
@@ -136,32 +196,26 @@
                         </div>
                     </div>
 
-                    <div class="profile-section" id="2fa-setup" style="display: none;">
-                        <h3>Настройка 2FA</h3>
+                    <div id="2fa-setup" style="display:none;">
                         <div class="qr-container">
                             <img id="qr-code" src="" alt="QR Code">
                         </div>
                         <div class="secret-key">
-                            <label>Секретный ключ:</label>
+                            <label>Ключ:</label>
                             <code id="secret-key">--</code>
-                            <button class="btn-copy" onclick="copySecret()">📋</button>
                         </div>
                         <div class="form-group">
-                            <label>Введите код из приложения:</label>
-                            <input type="text" id="totp-code" placeholder="000000" maxlength="6" pattern="[0-9]{6}">
+                            <input type="text" id="totp-code" placeholder="Код из приложения" maxlength="6">
                         </div>
                         <button class="btn btn-primary btn-full" onclick="verify2FA()">Подтвердить</button>
                     </div>
 
-                    <button class="btn btn-danger btn-full" onclick="logout()" style="margin-top: 20px;">
-                        Выйти
-                    </button>
+                    <button class="btn btn-danger btn-full" onclick="doLogout()" style="margin-top:20px;">Выйти</button>
                 </div>
             </div>
         </div>
 
-        <!-- Toast Notification -->
-        <div id="toast" class="toast" style="display: none;"></div>
+        <div id="toast" class="toast" style="display:none;"></div>
     </div>
 
     <script src="/js/app.js"></script>
