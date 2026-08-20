@@ -1,57 +1,44 @@
-// ==================== GLOBALS ====================
 let currentPage = 'dashboard';
 
-// ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuth();
-});
+document.addEventListener('DOMContentLoaded', checkAuth);
 
 async function checkAuth() {
     try {
-        const response = await fetch('/api/admin/dashboard');
-        if (response.ok) {
-            showDashboard();
-        }
-    } catch (error) {
-        // Not authenticated
-    }
+        const res = await fetch('/api/admin/dashboard');
+        if (res.ok) showDashboard();
+    } catch (e) {}
 }
 
 // ==================== LOGIN ====================
-async function handleLogin(event) {
-    event.preventDefault();
-    
+async function handleLogin(e) {
+    e.preventDefault();
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
     const totpCode = document.getElementById('login-2fa').value;
-    const errorEl = document.getElementById('login-error');
-    
+    const errEl = document.getElementById('login-error');
+
     try {
-        const response = await fetch('/api/admin/login', {
+        const res = await fetch('/api/admin/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, totp_code: totpCode })
         });
-        
-        const data = await response.json();
-        
+        const data = await res.json();
+
         if (data.requires_2fa) {
             document.getElementById('2fa-group').style.display = 'block';
-            document.getElementById('login-2fa').focus();
-            errorEl.style.display = 'none';
             return;
         }
-        
+
         if (data.success) {
             showDashboard();
-            errorEl.style.display = 'none';
         } else {
-            errorEl.textContent = data.error || 'Ошибка авторизации';
-            errorEl.style.display = 'block';
+            errEl.textContent = data.error;
+            errEl.style.display = 'block';
         }
-    } catch (error) {
-        errorEl.textContent = 'Ошибка подключения';
-        errorEl.style.display = 'block';
+    } catch (e) {
+        errEl.textContent = 'Ошибка';
+        errEl.style.display = 'block';
     }
 }
 
@@ -60,607 +47,304 @@ function showDashboard() {
     document.getElementById('admin-dashboard').style.display = 'flex';
     loadDashboard();
     loadSettings();
-    loadAdmin2FAStatus();
+    loadAdminProfile();
 }
 
 async function logout() {
     await fetch('/api/admin/logout', { method: 'POST' });
-    window.location.reload();
+    location.reload();
 }
 
 // ==================== NAVIGATION ====================
 function showPage(page) {
     currentPage = page;
-    
-    // Update nav
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.page === page);
-    });
-    
-    // Update pages
-    document.querySelectorAll('.page').forEach(p => {
-        p.classList.toggle('active', p.id === `page-${page}`);
-    });
-    
-    // Update title
-    const titles = {
-        dashboard: 'Дашборд',
-        transactions: 'Транзакции',
-        users: 'Пользователи',
-        settings: 'Настройки',
-        security: 'Безопасность'
-    };
-    document.getElementById('page-title').textContent = titles[page] || page;
-    
-    // Load data
-    switch (page) {
-        case 'dashboard':
-            loadDashboard();
-            break;
-        case 'transactions':
-            loadAllTransactions();
-            break;
-        case 'users':
-            loadUsers();
-            break;
-        case 'settings':
-            loadSettings();
-            break;
-        case 'security':
-            loadAdmin2FAStatus();
-            break;
-    }
-    
-    // Close sidebar on mobile
-    document.querySelector('.sidebar').classList.remove('open');
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === page));
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${page}`));
+    const titles = { dashboard: 'Дашборд', transactions: 'Транзакции', users: 'Пользователи', settings: 'Настройки', security: 'Безопасность' };
+    document.getElementById('page-title').textContent = titles[page];
+    if (page === 'dashboard') loadDashboard();
+    if (page === 'transactions') loadTransactions();
+    if (page === 'users') loadUsers();
+    if (page === 'settings') loadSettings();
+    document.getElementById('sidebar').classList.remove('open');
 }
 
 function toggleSidebar() {
-    document.querySelector('.sidebar').classList.toggle('open');
+    document.getElementById('sidebar').classList.toggle('open');
 }
 
 // ==================== DASHBOARD ====================
 async function loadDashboard() {
     try {
-        const response = await fetch('/api/admin/dashboard');
-        const data = await response.json();
-        
+        const res = await fetch('/api/admin/dashboard');
+        const data = await res.json();
         document.getElementById('stat-users').textContent = data.total_users;
         document.getElementById('stat-transactions').textContent = data.total_transactions;
         document.getElementById('stat-pending').textContent = data.pending_transactions;
-        document.getElementById('stat-volume').textContent = `${data.total_volume_usdt.toFixed(2)} USDT`;
-        
-        renderRecentTransactions(data.recent_transactions);
-    } catch (error) {
-        console.error('Error loading dashboard:', error);
-    }
-}
+        document.getElementById('stat-volume').textContent = data.total_volume_usdt.toFixed(2);
 
-function renderRecentTransactions(transactions) {
-    const tbody = document.getElementById('recent-transactions-body');
-    
-    if (!transactions || transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--gray-400);">Нет транзакций</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = transactions.map(t => `
-        <tr>
-            <td>#${t.id}</td>
-            <td>${t.first_name || t.username || 'N/A'}</td>
-            <td>${t.amount_usdt} USDT</td>
-            <td><span class="badge badge-${t.status}">${getStatusText(t.status)}</span></td>
-            <td>${formatDate(t.created_at)}</td>
-        </tr>
-    `).join('');
+        const tbody = document.getElementById('recent-body');
+        if (!data.recent_transactions.length) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;">Нет транзакций</td></tr>';
+        } else {
+            tbody.innerHTML = data.recent_transactions.map(t => `
+                <tr>
+                    <td>#${t.id}</td>
+                    <td>${t.username || t.first_name || 'N/A'}</td>
+                    <td>${t.amount_usdt}</td>
+                    <td><span class="badge badge-${t.status}">${stText(t.status)}</span></td>
+                    <td>${fmtDate(t.created_at)}</td>
+                </tr>
+            `).join('');
+        }
+    } catch (e) {}
 }
 
 // ==================== TRANSACTIONS ====================
-async function loadAllTransactions() {
-    const status = document.getElementById('filter-status').value;
-    
+async function loadTransactions() {
+    const status = document.getElementById('filter-status')?.value || '';
     try {
-        let url = '/api/admin/transactions';
-        if (status) url += `?status=${status}`;
-        
-        const response = await fetch(url);
-        const transactions = await response.json();
-        
-        renderAllTransactions(transactions);
-    } catch (error) {
-        console.error('Error loading transactions:', error);
-    }
+        const res = await fetch(`/api/admin/transactions${status ? '?status=' + status : ''}`);
+        const list = await res.json();
+        const tbody = document.getElementById('all-trans-body');
+
+        if (!list.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;">Нет</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = list.map(t => `
+            <tr>
+                <td>#${t.id}</td>
+                <td>${t.username || 'N/A'}</td>
+                <td>${t.amount_usdt}</td>
+                <td>${fmtRub(t.amount_rub)}</td>
+                <td>${t.rate} ₽</td>
+                <td><span class="badge badge-${t.status}">${stText(t.status)}</span></td>
+                <td>
+                    ${t.status === 'pending' ? `
+                        <button class="btn btn-success btn-small" onclick="confirmTx(${t.id})">✓</button>
+                        <button class="btn btn-danger btn-small" onclick="rejectTx(${t.id})">✕</button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {}
 }
 
-function renderAllTransactions(transactions) {
-    const tbody = document.getElementById('all-transactions-body');
-    
-    if (!transactions || transactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--gray-400);">Нет транзакций</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = transactions.map(t => `
-        <tr>
-            <td>#${t.id}</td>
-            <td>${t.first_name || t.username || 'N/A'}<br><small style="color: var(--gray-400);">@${t.username || 'N/A'}</small></td>
-            <td>${t.type === 'exchange' ? '💱 Обмен' : '💸 Вывод'}</td>
-            <td>${t.amount_usdt}</td>
-            <td>${formatRub(t.amount_rub)}</td>
-            <td>${t.rate} ₽</td>
-            <td><span class="badge badge-${t.status}">${getStatusText(t.status)}</span></td>
-            <td>
-                ${t.status === 'pending' ? `
-                    <button class="btn btn-success btn-small" onclick="confirmTransaction(${t.id})">✓</button>
-                    <button class="btn btn-danger btn-small" onclick="rejectTransaction(${t.id})">✕</button>
-                ` : `
-                    <button class="btn btn-small" onclick="viewTransaction(${t.id})">👁</button>
-                `}
-            </td>
-        </tr>
-    `).join('');
-}
-
-async function confirmTransaction(id) {
+async function confirmTx(id) {
     const comment = prompt('Комментарий (необязательно):');
-    
-    try {
-        const response = await fetch(`/api/admin/transactions/${id}/confirm`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ admin_comment: comment })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Транзакция подтверждена', 'success');
-            loadAllTransactions();
-            loadDashboard();
-        } else {
-            showNotification(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка подтверждения', 'error');
-    }
+    const res = await fetch(`/api/admin/transactions/${id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_comment: comment })
+    });
+    const data = await res.json();
+    if (data.success) { notify('Подтверждено', 'success'); loadTransactions(); loadDashboard(); }
+    else notify(data.error, 'error');
 }
 
-async function rejectTransaction(id) {
-    const comment = prompt('Причина отклонения:');
+async function rejectTx(id) {
+    const comment = prompt('Причина:');
     if (!comment) return;
-    
-    try {
-        const response = await fetch(`/api/admin/transactions/${id}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ admin_comment: comment })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Транзакция отклонена', 'success');
-            loadAllTransactions();
-        } else {
-            showNotification(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка отклонения', 'error');
-    }
-}
-
-function viewTransaction(id) {
-    showNotification(`Просмотр транзакции #${id}`, 'info');
+    const res = await fetch(`/api/admin/transactions/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_comment: comment })
+    });
+    const data = await res.json();
+    if (data.success) { notify('Отклонено', 'success'); loadTransactions(); }
+    else notify(data.error, 'error');
 }
 
 // ==================== USERS ====================
 async function loadUsers() {
     try {
-        const response = await fetch('/api/admin/users');
-        const users = await response.json();
-        
-        renderUsers(users);
-    } catch (error) {
-        console.error('Error loading users:', error);
-    }
-}
+        const res = await fetch('/api/admin/users');
+        const users = await res.json();
+        const tbody = document.getElementById('users-body');
 
-function renderUsers(users) {
-    const tbody = document.getElementById('users-body');
-    
-    if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--gray-400);">Нет пользователей</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = users.map(u => `
-        <tr>
-            <td>#${u.id}</td>
-            <td>${u.telegram_id}</td>
-            <td>${u.first_name || u.username || 'N/A'}</td>
-            <td>${formatRub(u.balance_rub)}</td>
-            <td>${u.totp_enabled ? '<span class="badge badge-2fa">2FA ✓</span>' : '—'}</td>
-            <td>${u.is_blocked ? '<span class="badge badge-blocked">Заблокирован</span>' : '<span class="badge badge-active">Активен</span>'}</td>
-            <td>
-                <button class="btn btn-small" onclick="viewUser(${u.id})">👁</button>
-                ${u.is_blocked ? 
-                    `<button class="btn btn-success btn-small" onclick="unblockUser(${u.id})">🔓</button>` :
-                    `<button class="btn btn-warning btn-small" onclick="blockUser(${u.id})">🔒</button>`
-                }
-            </td>
-        </tr>
-    `).join('');
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td>#${u.id}</td>
+                <td>${u.username || 'N/A'}</td>
+                <td>${fmtRub(u.balance_rub)}</td>
+                <td>${(u.total_exchanged_usdt || 0).toFixed(2)}</td>
+                <td>${u.totp_enabled ? '<span class="badge badge-2fa">2FA ✓</span>' : '—'}</td>
+                <td>${u.is_blocked ? '<span class="badge badge-blocked">Заблокирован</span>' : '<span class="badge badge-active">Активен</span>'}</td>
+                <td>
+                    <button class="btn btn-small" onclick="viewUser(${u.id})">👁</button>
+                    ${u.is_blocked ?
+                        `<button class="btn btn-success btn-small" onclick="unblockUser(${u.id})">🔓</button>` :
+                        `<button class="btn btn-warning btn-small" onclick="blockUser(${u.id})">🔒</button>`
+                    }
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {}
 }
 
 async function viewUser(id) {
-    try {
-        const response = await fetch(`/api/admin/users/${id}`);
-        const data = await response.json();
-        
-        showUserModal(data);
-    } catch (error) {
-        showNotification('Ошибка загрузки пользователя', 'error');
-    }
-}
-
-function showUserModal(user) {
-    const modal = document.getElementById('user-modal');
+    const res = await fetch(`/api/admin/users/${id}`);
+    const u = await res.json();
     const body = document.getElementById('user-modal-body');
-    
+
     body.innerHTML = `
-        <div class="user-detail">
-            <div class="user-info-header">
-                <span class="user-avatar">👤</span>
-                <div>
-                    <div class="user-name">${user.first_name || user.username || 'N/A'}</div>
-                    <div class="user-id">Telegram ID: ${user.telegram_id}</div>
-                </div>
-            </div>
-            
-            <div class="info-grid">
-                <div class="info-item">
-                    <span class="info-label">Баланс:</span>
-                    <span class="info-value">${formatRub(user.balance_rub)}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">2FA:</span>
-                    <span class="info-value">${user.totp_enabled ? 'Подключена' : 'Не подключена'}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Статус:</span>
-                    <span class="info-value">${user.is_blocked ? 'Заблокирован' : 'Активен'}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">Регистрация:</span>
-                    <span class="info-value">${formatDate(user.created_at)}</span>
-                </div>
-            </div>
-            
-            <h3 style="margin-top: 20px;">Изменить баланс</h3>
-            <div style="display: flex; gap: 12px; margin-top: 12px;">
-                <input type="number" id="balance-amount" placeholder="Сумма" style="flex: 1; padding: 10px; border: 1px solid var(--gray-300); border-radius: 8px;">
-                <button class="btn btn-success" onclick="adjustBalance(${user.id}, 'add')">+</button>
-                <button class="btn btn-danger" onclick="adjustBalance(${user.id}, 'subtract')">−</button>
-            </div>
-            
-            <div class="user-actions" style="margin-top: 20px;">
-                ${user.totp_enabled ? 
-                    `<button class="btn btn-warning" onclick="reset2FA(${user.id})">Сбросить 2FA</button>` : ''
-                }
-                <button class="btn btn-small" onclick="resetAttempts(${user.id})">Сбросить попытки</button>
-            </div>
-            
-            <h3 style="margin-top: 20px;">Последние транзакции</h3>
-            <div style="margin-top: 12px; max-height: 200px; overflow-y: auto;">
-                ${user.transactions && user.transactions.length > 0 ? `
-                    <table style="width: 100%; font-size: 13px;">
-                        <thead>
-                            <tr>
-                                <th>Дата</th>
-                                <th>Тип</th>
-                                <th>USDT</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${user.transactions.slice(0, 10).map(t => `
-                                <tr>
-                                    <td>${formatDate(t.created_at)}</td>
-                                    <td>${t.type === 'exchange' ? '💱' : '💸'}</td>
-                                    <td>${t.amount_usdt}</td>
-                                    <td><span class="badge badge-${t.status}">${getStatusText(t.status)}</span></td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                ` : '<p style="color: var(--gray-400);">Нет транзакций</p>'}
-            </div>
+        <h3>${u.username}</h3>
+        <p>ID: ${u.telegram_id || 'Нет'}</p>
+        <p>Баланс: <strong>${fmtRub(u.balance_rub)}</strong></p>
+        <p>Оборот: <strong>${(u.total_exchanged_usdt || 0).toFixed(2)} USDT</strong></p>
+        <p>Получено: <strong>${fmtRub(u.total_received_rub)}</strong></p>
+        <p>2FA: ${u.totp_enabled ? 'Подключена' : 'Нет'}</p>
+        <hr style="margin:16px 0;">
+        <h4>Изменить баланс</h4>
+        <div style="display:flex;gap:8px;margin:12px 0;">
+            <input type="number" id="bal-amount" placeholder="Сумма" style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:8px;">
+            <button class="btn btn-success btn-small" onclick="adjustBal(${u.id},'add')">+</button>
+            <button class="btn btn-danger btn-small" onclick="adjustBal(${u.id},'subtract')">−</button>
         </div>
+        ${u.totp_enabled ? `<button class="btn btn-warning btn-small" onclick="reset2fa(${u.id})">Сбросить 2FA</button>` : ''}
+        <h4 style="margin-top:16px;">Транзакции</h4>
+        ${u.transactions?.length ? u.transactions.slice(0, 10).map(t => `
+            <div style="padding:8px;background:#f9fafb;border-radius:8px;margin:4px 0;font-size:13px;">
+                ${fmtDate(t.created_at)} | ${t.amount_usdt} USDT | ${stText(t.status)}
+            </div>
+        `).join('') : '<p style="color:#9ca3af;">Нет</p>'}
     `;
-    
-    modal.style.display = 'flex';
+    document.getElementById('user-modal').style.display = 'flex';
 }
 
-function closeUserModal() {
-    document.getElementById('user-modal').style.display = 'none';
-}
-
-async function adjustBalance(id, action) {
-    const amount = parseFloat(document.getElementById('balance-amount').value);
-    
-    if (!amount || amount <= 0) {
-        showNotification('Введите сумму', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/admin/users/${id}/balance`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount, action })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification(`Баланс обновлён: ${formatRub(data.new_balance)}`, 'success');
-            viewUser(id);
-            loadUsers();
-        } else {
-            showNotification(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка обновления баланса', 'error');
-    }
+async function adjustBal(id, action) {
+    const amount = parseFloat(document.getElementById('bal-amount').value);
+    if (!amount) return notify('Введите сумму', 'error');
+    const res = await fetch(`/api/admin/users/${id}/balance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, action })
+    });
+    const data = await res.json();
+    if (data.success) { notify(`Баланс: ${fmtRub(data.new_balance)}`, 'success'); viewUser(id); loadUsers(); }
+    else notify(data.error, 'error');
 }
 
 async function blockUser(id) {
-    if (!confirm('Заблокировать пользователя?')) return;
-    
-    try {
-        const response = await fetch(`/api/admin/users/${id}/block`, { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Пользователь заблокирован', 'success');
-            loadUsers();
-        }
-    } catch (error) {
-        showNotification('Ошибка блокировки', 'error');
-    }
+    if (!confirm('Заблокировать?')) return;
+    await fetch(`/api/admin/users/${id}/block`, { method: 'POST' });
+    notify('Заблокирован', 'success');
+    loadUsers();
 }
 
 async function unblockUser(id) {
-    try {
-        const response = await fetch(`/api/admin/users/${id}/unblock`, { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Пользователь разблокирован', 'success');
-            loadUsers();
-        }
-    } catch (error) {
-        showNotification('Ошибка разблокировки', 'error');
-    }
+    await fetch(`/api/admin/users/${id}/unblock`, { method: 'POST' });
+    notify('Разблокирован', 'success');
+    loadUsers();
 }
 
-async function reset2FA(id) {
-    if (!confirm('Сбросить 2FA для пользователя?')) return;
-    
-    try {
-        const response = await fetch(`/api/admin/users/${id}/reset-2fa`, { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('2FA сброшена', 'success');
-            viewUser(id);
-        }
-    } catch (error) {
-        showNotification('Ошибка сброса 2FA', 'error');
-    }
-}
-
-async function resetAttempts(id) {
-    try {
-        const response = await fetch(`/api/admin/users/${id}/reset-attempts`, { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('Счётчик попыток сброшен', 'success');
-        }
-    } catch (error) {
-        showNotification('Ошибка', 'error');
-    }
+async function reset2fa(id) {
+    if (!confirm('Сбросить 2FA?')) return;
+    await fetch(`/api/admin/users/${id}/reset-2fa`, { method: 'POST' });
+    notify('2FA сброшена', 'success');
+    viewUser(id);
 }
 
 // ==================== SETTINGS ====================
 async function loadSettings() {
-    try {
-        const response = await fetch('/api/admin/settings');
-        const settings = await response.json();
-        
-        document.getElementById('setting-base_rate').value = settings.base_rate || '';
-        document.getElementById('setting-markup_percent').value = settings.markup_percent || '';
-        document.getElementById('setting-trc20_wallet').value = settings.trc20_wallet || '';
-        document.getElementById('setting-min_exchange_usdt').value = settings.min_exchange_usdt || '';
-        document.getElementById('setting-support_contact').value = settings.support_contact || '';
-        
-        // Calculate final rate
-        const base = parseFloat(settings.base_rate) || 0;
-        const markup = parseFloat(settings.markup_percent) || 0;
-        const finalRate = base * (1 + markup / 100);
-        document.getElementById('info-final-rate').textContent = `${finalRate.toFixed(2)} ₽`;
-    } catch (error) {
-        console.error('Error loading settings:', error);
-    }
+    const res = await fetch('/api/admin/settings');
+    const s = await res.json();
+    document.getElementById('s-base_rate').value = s.base_rate || '';
+    document.getElementById('s-markup_percent').value = s.markup_percent || '';
+    document.getElementById('s-trc20_wallet').value = s.trc20_wallet || '';
+    document.getElementById('s-min_exchange_usdt').value = s.min_exchange_usdt || '';
+    document.getElementById('s-support_contact').value = s.support_contact || '';
+
+    const base = parseFloat(s.base_rate) || 0;
+    const markup = parseFloat(s.markup_percent) || 0;
+    document.getElementById('final-rate').textContent = `${(base * (1 + markup / 100)).toFixed(2)} ₽`;
 }
 
-async function saveSettings(event) {
-    event.preventDefault();
-    
-    const settings = {
-        base_rate: document.getElementById('setting-base_rate').value,
-        markup_percent: document.getElementById('setting-markup_percent').value,
-        trc20_wallet: document.getElementById('setting-trc20_wallet').value,
-        min_exchange_usdt: document.getElementById('setting-min_exchange_usdt').value,
-        support_contact: document.getElementById('setting-support_contact').value
-    };
-    
-    try {
-        for (const [key, value] of Object.entries(settings)) {
-            await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
-        }
-        
-        showNotification('Настройки сохранены', 'success');
-        loadSettings();
-    } catch (error) {
-        showNotification('Ошибка сохранения', 'error');
+async function saveSettings(e) {
+    e.preventDefault();
+    const keys = ['base_rate', 'markup_percent', 'trc20_wallet', 'min_exchange_usdt', 'support_contact'];
+    for (const key of keys) {
+        await fetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, value: document.getElementById(`s-${key}`).value })
+        });
     }
+    notify('Сохранено!', 'success');
+    loadSettings();
 }
 
-// ==================== ADMIN 2FA ====================
-async function loadAdmin2FAStatus() {
-    try {
-        const response = await fetch('/api/admin/settings');
-        const settings = await response.json();
-        
-        document.getElementById('admin-2fa-status').textContent = 'Проверьте в настройках';
-    } catch (error) {
-        console.error('Error loading 2FA status:', error);
+// ==================== ADMIN SECURITY ====================
+async function loadAdminProfile() {
+    const res = await fetch('/api/admin/profile');
+    const admin = await res.json();
+    document.getElementById('admin-2fa-status').textContent = admin.totp_enabled ? '2FA подключена ✓' : '2FA не подключена';
+}
+
+async function changeAdminCreds() {
+    const current_password = document.getElementById('admin-curr-pass').value;
+    const new_username = document.getElementById('admin-new-user').value;
+    const new_password = document.getElementById('admin-new-pass').value;
+
+    if (!current_password) return notify('Введите текущий пароль', 'error');
+
+    const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_password, new_username: new_username || undefined, new_password: new_password || undefined })
+    });
+    const data = await res.json();
+    if (data.success) {
+        notify('Данные обновлены!', 'success');
+        document.getElementById('admin-curr-pass').value = '';
+        document.getElementById('admin-new-user').value = '';
+        document.getElementById('admin-new-pass').value = '';
+    } else {
+        notify(data.error, 'error');
     }
 }
 
 async function setupAdmin2FA() {
-    try {
-        const response = await fetch('/api/admin/2fa/setup', { method: 'POST' });
-        const data = await response.json();
-        
-        if (data.success) {
-            document.getElementById('admin-qr-code').src = data.qr_code;
-            document.getElementById('admin-secret-key').textContent = data.secret;
-            document.getElementById('admin-2fa-setup').style.display = 'block';
-        } else {
-            showNotification(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка настройки 2FA', 'error');
+    const res = await fetch('/api/admin/2fa/setup', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById('admin-qr').src = data.qr_code;
+        document.getElementById('admin-secret').textContent = data.secret;
+        document.getElementById('admin-2fa-setup').style.display = 'block';
     }
 }
 
 async function verifyAdmin2FA() {
     const code = document.getElementById('admin-totp-code').value;
-    
-    if (!code || code.length !== 6) {
-        showNotification('Введите 6-значный код', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/admin/2fa/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showNotification('2FA успешно подключена!', 'success');
-            document.getElementById('admin-2fa-setup').style.display = 'none';
-            document.getElementById('admin-2fa-status').textContent = 'Подключена ✓';
-            document.getElementById('admin-2fa-status').classList.add('active');
-        } else {
-            showNotification(data.error || 'Неверный код', 'error');
-        }
-    } catch (error) {
-        showNotification('Ошибка проверки кода', 'error');
+    if (!code || code.length !== 6) return notify('Введите 6-значный код', 'error');
+
+    const res = await fetch('/api/admin/2fa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+    });
+    const data = await res.json();
+    if (data.success) {
+        notify('2FA подключена!', 'success');
+        document.getElementById('admin-2fa-setup').style.display = 'none';
+        loadAdminProfile();
+    } else {
+        notify(data.error, 'error');
     }
 }
 
-// ==================== UTILITIES ====================
-function getStatusText(status) {
-    const statuses = {
-        'pending': 'Ожидает',
-        'confirmed': 'Подтверждено',
-        'rejected': 'Отклонено'
-    };
-    return statuses[status] || status;
+// ==================== UTILS ====================
+function stText(s) { return { pending: 'Ожидает', confirmed: 'Подтверждено', rejected: 'Отклонено' }[s] || s; }
+function fmtRub(a) { return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 2 }).format(a || 0); }
+function fmtDate(d) { return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d)); }
+
+function notify(msg, type = 'info') {
+    const n = document.createElement('div');
+    n.style.cssText = `position:fixed;top:20px;right:20px;padding:16px 24px;border-radius:12px;color:white;font-weight:600;z-index:10000;max-width:400px;`;
+    n.style.background = { success: '#10b981', error: '#ef4444', info: '#3b82f6' }[type] || '#3b82f6';
+    n.textContent = msg;
+    document.body.appendChild(n);
+    setTimeout(() => n.remove(), 3000);
 }
-
-function formatRub(amount) {
-    return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        minimumFractionDigits: 2
-    }).format(amount || 0);
-}
-
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(date);
-}
-
-function showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 24px;
-        border-radius: 12px;
-        color: white;
-        font-weight: 600;
-        z-index: 10000;
-        animation: slideIn 0.3s ease-out;
-        max-width: 400px;
-    `;
-    
-    const colors = {
-        success: '#10b981',
-        error: '#ef4444',
-        info: '#3b82f6',
-        warning: '#f59e0b'
-    };
-    
-    notification.style.background = colors[type] || colors.info;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-
-// Close modal on outside click
-document.getElementById('user-modal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeUserModal();
-    }
-});
-
-// Add animation style
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-`;
-document.head.appendChild(style);
