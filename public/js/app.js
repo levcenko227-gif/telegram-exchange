@@ -2,71 +2,130 @@
 let currentUser = null;
 let currentTransaction = null;
 
-// ==================== INITIALIZATION ====================
+// ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
-    initTelegramApp();
-    loadExchangeRate();
-    loadTransactions();
+    checkSession();
 });
 
-function initTelegramApp() {
-    // Initialize Telegram Web App
-    if (window.Telegram && window.Telegram.WebApp) {
-        const tg = window.Telegram.WebApp;
-        tg.ready();
-        tg.expand();
-        
-        // Get user data from Telegram
-        const user = tg.initDataUnsafe?.user;
-        if (user) {
-            authenticateUser(user.id, user.username, user.first_name);
-        } else {
-            // For testing without Telegram
-            authenticateUser('test_user_123', 'testuser', 'Тестовый пользователь');
+async function checkSession() {
+    try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+            const data = await res.json();
+            currentUser = data;
+            showApp();
         }
-    } else {
-        // For testing outside Telegram
-        authenticateUser('test_user_123', 'testuser', 'Тестовый пользователь');
-    }
+    } catch (e) {}
 }
 
-async function authenticateUser(telegramId, username, firstName) {
+// ==================== AUTH ====================
+function showLogin() {
+    document.getElementById('login-form').style.display = 'block';
+    document.getElementById('register-form').style.display = 'none';
+}
+
+function showRegister() {
+    document.getElementById('login-form').style.display = 'none';
+    document.getElementById('register-form').style.display = 'block';
+}
+
+async function handleLogin() {
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    const totp = document.getElementById('login-totp').value;
+    const errEl = document.getElementById('login-error');
+
     try {
-        const response = await fetch('/api/auth/telegram', {
+        const res = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegram_id: telegramId,
-                username: username,
-                first_name: firstName
-            })
+            body: JSON.stringify({ username, password, totp_code: totp })
         });
 
-        const data = await response.json();
+        const data = await res.json();
+
+        if (data.requires_2fa) {
+            document.getElementById('login-2fa-group').style.display = 'block';
+            errEl.style.display = 'none';
+            return;
+        }
+
         if (data.success) {
             currentUser = data.user;
-            updateUserUI();
+            showApp();
         } else {
-            showToast('Ошибка авторизации', 'error');
+            errEl.textContent = data.error;
+            errEl.style.display = 'block';
         }
-    } catch (error) {
-        console.error('Auth error:', error);
-        showToast('Ошибка подключения', 'error');
+    } catch (e) {
+        errEl.textContent = 'Ошибка подключения';
+        errEl.style.display = 'block';
     }
 }
 
-// ==================== UI UPDATES ====================
+async function handleRegister() {
+    const username = document.getElementById('reg-username').value;
+    const password = document.getElementById('reg-password').value;
+    const errEl = document.getElementById('reg-error');
+
+    // Get Telegram user data if available
+    let telegramId = null;
+    let firstName = username;
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
+        if (tgUser) {
+            telegramId = tgUser.id;
+            firstName = tgUser.first_name || username;
+        }
+    }
+
+    try {
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, telegram_id: telegramId, first_name: firstName })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            currentUser = data.user;
+            showApp();
+        } else {
+            errEl.textContent = data.error;
+            errEl.style.display = 'block';
+        }
+    } catch (e) {
+        errEl.textContent = 'Ошибка подключения';
+        errEl.style.display = 'block';
+    }
+}
+
+async function doLogout() {
+    await fetch('/api/logout', { method: 'POST' });
+    currentUser = null;
+    location.reload();
+}
+
+// ==================== SHOW APP ====================
+function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('main-app').style.display = 'block';
+    updateUserUI();
+    loadRate();
+    loadTransactions();
+}
+
 function updateUserUI() {
     if (!currentUser) return;
-    
     document.getElementById('user-balance').textContent = formatRub(currentUser.balance_rub);
-    document.getElementById('profile-name').textContent = currentUser.first_name || currentUser.username || 'Пользователь';
-    document.getElementById('profile-id').textContent = `ID: ${currentUser.telegram_id}`;
-    
-    // Update 2FA status
+    document.getElementById('profile-name').textContent = currentUser.username;
+    document.getElementById('profile-id').textContent = currentUser.first_name || '';
+    document.getElementById('stat-usdt').textContent = (currentUser.total_exchanged_usdt || 0).toFixed(2);
+    document.getElementById('stat-rub').textContent = formatRub(currentUser.total_received_rub || 0);
+
     const statusEl = document.getElementById('2fa-status');
     const btn2fa = document.getElementById('btn-2fa');
-    
     if (currentUser.totp_enabled) {
         statusEl.textContent = 'Подключена ✓';
         statusEl.classList.add('active');
@@ -80,147 +139,57 @@ function updateUserUI() {
     }
 }
 
-async function loadExchangeRate() {
+// ==================== RATE ====================
+async function loadRate() {
     try {
-        const response = await fetch('/api/exchange/rate');
-        const data = await response.json();
-        
+        const res = await fetch('/api/exchange/rate');
+        const data = await res.json();
         document.getElementById('current-rate').textContent = `${data.final_rate} ₽`;
         document.getElementById('base-rate').textContent = data.base_rate;
         document.getElementById('markup').textContent = data.markup_percent;
-    } catch (error) {
-        console.error('Error loading rate:', error);
-    }
+    } catch (e) {}
 }
 
-async function loadTransactions() {
-    try {
-        const response = await fetch('/api/transactions');
-        const transactions = await response.json();
-        
-        renderTransactions(transactions);
-    } catch (error) {
-        console.error('Error loading transactions:', error);
-    }
-}
-
-function renderTransactions(transactions) {
-    const container = document.getElementById('transactions-list');
-    
-    if (!transactions || transactions.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">📊</span>
-                <p>Пока нет операций</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = transactions.map(t => `
-        <div class="transaction-item">
-            <div class="transaction-header">
-                <span class="transaction-type">${t.type === 'exchange' ? '💱 Обмен' : '💸 Вывод'}</span>
-                <span class="transaction-status status-${t.status}">
-                    ${getStatusText(t.status)}
-                </span>
-            </div>
-            <div class="transaction-details">
-                <div class="transaction-row">
-                    <span>Сумма USDT:</span>
-                    <span class="transaction-amount">${t.amount_usdt} USDT</span>
-                </div>
-                <div class="transaction-row">
-                    <span>Сумма RUB:</span>
-                    <span class="transaction-amount">${formatRub(t.amount_rub)}</span>
-                </div>
-                <div class="transaction-row">
-                    <span>Курс:</span>
-                    <span>${t.rate} ₽</span>
-                </div>
-            </div>
-            <div class="transaction-date">${formatDate(t.created_at)}</div>
-        </div>
-    `).join('');
-}
-
-function getStatusText(status) {
-    const statuses = {
-        'pending': 'Ожидает',
-        'confirmed': 'Подтверждено',
-        'rejected': 'Отклонено'
-    };
-    return statuses[status] || status;
-}
-
-// ==================== EXCHANGE ====================
-// Input handler for exchange amount
-document.getElementById('amount-usdt')?.addEventListener('input', function() {
-    const amount = parseFloat(this.value) || 0;
+function calcPreview() {
+    const amount = parseFloat(document.getElementById('amount-usdt').value) || 0;
     const preview = document.getElementById('exchange-preview');
-    
     if (amount > 0) {
         preview.style.display = 'block';
-        calculatePreview(amount);
+        const rateText = document.getElementById('current-rate').textContent;
+        const rate = parseFloat(rateText) || 0;
+        document.getElementById('preview-rub').textContent = formatRub(amount * rate);
     } else {
         preview.style.display = 'none';
     }
-});
-
-async function calculatePreview(amount) {
-    try {
-        const response = await fetch('/api/exchange/rate');
-        const data = await response.json();
-        
-        const rubAmount = amount * parseFloat(data.final_rate);
-        
-        document.getElementById('preview-rub').textContent = formatRub(rubAmount);
-        document.getElementById('preview-rate').textContent = `${data.final_rate} ₽`;
-    } catch (error) {
-        console.error('Error calculating:', error);
-    }
 }
 
+// ==================== EXCHANGE ====================
 async function createExchange() {
-    const amountInput = document.getElementById('amount-usdt');
-    const amount = parseFloat(amountInput.value);
-    
-    if (!amount || amount <= 0) {
-        showToast('Введите сумму', 'error');
-        return;
-    }
-    
+    const amount = parseFloat(document.getElementById('amount-usdt').value);
+    if (!amount || amount <= 0) return showToast('Введите сумму', 'error');
+
     try {
-        const response = await fetch('/api/exchange/create', {
+        const res = await fetch('/api/exchange/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount_usdt: amount })
         });
-        
-        const data = await response.json();
-        
+        const data = await res.json();
+
         if (data.success) {
             currentTransaction = data;
-            showWalletSection(data);
+            document.getElementById('exchange-section').style.display = 'none';
+            document.getElementById('wallet-section').style.display = 'block';
+            document.getElementById('wallet-address').textContent = data.wallet_address;
+            document.getElementById('send-amount').textContent = `${data.amount_usdt} USDT`;
+            document.getElementById('receive-amount').textContent = `${data.amount_rub} ₽`;
             showToast('Заявка создана!', 'success');
         } else {
-            showToast(data.error || 'Ошибка', 'error');
+            showToast(data.error, 'error');
         }
-    } catch (error) {
-        showToast('Ошибка создания заявки', 'error');
+    } catch (e) {
+        showToast('Ошибка', 'error');
     }
-}
-
-function showWalletSection(data) {
-    document.getElementById('exchange-section').style.display = 'none';
-    document.getElementById('wallet-section').style.display = 'block';
-    
-    document.getElementById('wallet-address').textContent = data.wallet_address;
-    document.getElementById('send-amount').textContent = `${data.amount_usdt} USDT`;
-    document.getElementById('receive-amount').textContent = formatRub(parseFloat(data.amount_rub));
-    
-    // Scroll to wallet section
-    document.getElementById('wallet-section').scrollIntoView({ behavior: 'smooth' });
 }
 
 function cancelExchange() {
@@ -232,177 +201,167 @@ function cancelExchange() {
 }
 
 async function confirmSent() {
-    if (!currentTransaction) {
-        showToast('Ошибка: транзакция не найдена', 'error');
-        return;
-    }
-    
+    if (!currentTransaction) return;
     try {
-        const response = await fetch('/api/exchange/confirm-sent', {
+        const res = await fetch('/api/exchange/confirm-sent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ transaction_id: currentTransaction.transaction_id })
         });
-        
-        const data = await response.json();
-        
+        const data = await res.json();
         if (data.success) {
-            showToast('Заявка отправлена на проверку!', 'success');
+            showToast('Отправлено на проверку!', 'success');
             cancelExchange();
             loadTransactions();
-        } else {
-            showToast(data.error || 'Ошибка', 'error');
         }
-    } catch (error) {
-        showToast('Ошибка подтверждения', 'error');
-    }
+    } catch (e) {}
 }
 
 function copyAddress() {
-    const address = document.getElementById('wallet-address').textContent;
-    navigator.clipboard.writeText(address)
-        .then(() => showToast('Адрес скопирован!', 'success'))
-        .catch(() => showToast('Не удалось скопировать', 'error'));
+    const addr = document.getElementById('wallet-address').textContent;
+    navigator.clipboard.writeText(addr).then(() => showToast('Скопировано!', 'success'));
+}
+
+// ==================== TRANSACTIONS ====================
+async function loadTransactions() {
+    try {
+        const res = await fetch('/api/transactions');
+        const list = await res.json();
+        const container = document.getElementById('transactions-list');
+
+        if (!list || list.length === 0) {
+            container.innerHTML = '<div class="empty-state"><span class="empty-icon">📊</span><p>Пока нет операций</p></div>';
+            return;
+        }
+
+        container.innerHTML = list.map(t => `
+            <div class="transaction-item">
+                <div class="transaction-header">
+                    <span class="transaction-type">${t.type === 'exchange' ? '💱 Обмен' : '💸 Вывод'}</span>
+                    <span class="transaction-status status-${t.status}">${statusText(t.status)}</span>
+                </div>
+                <div class="transaction-details">
+                    <div class="transaction-row"><span>USDT:</span><span>${t.amount_usdt}</span></div>
+                    <div class="transaction-row"><span>RUB:</span><span>${formatRub(t.amount_rub)}</span></div>
+                    <div class="transaction-row"><span>Курс:</span><span>${t.rate} ₽</span></div>
+                </div>
+                <div class="transaction-date">${formatDate(t.created_at)}</div>
+                ${t.admin_comment ? `<div class="admin-comment">💬 ${t.admin_comment}</div>` : ''}
+            </div>
+        `).join('');
+    } catch (e) {}
+}
+
+function statusText(s) {
+    return { pending: 'Ожидает', confirmed: 'Подтверждено', rejected: 'Отклонено' }[s] || s;
 }
 
 // ==================== PROFILE ====================
 function showProfile() {
     document.getElementById('profile-modal').style.display = 'flex';
-    document.body.style.overflow = 'hidden';
 }
 
 function closeProfile() {
     document.getElementById('profile-modal').style.display = 'none';
-    document.body.style.overflow = '';
     document.getElementById('2fa-setup').style.display = 'none';
+}
+
+async function changePassword() {
+    const curr = document.getElementById('current-pass').value;
+    const newP = document.getElementById('new-pass').value;
+
+    if (!curr || !newP) return showToast('Заполните поля', 'error');
+
+    try {
+        const res = await fetch('/api/user/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current_password: curr, new_password: newP })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Пароль изменён!', 'success');
+            document.getElementById('current-pass').value = '';
+            document.getElementById('new-pass').value = '';
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (e) {}
 }
 
 // ==================== 2FA ====================
 async function setup2FA() {
     try {
-        const response = await fetch('/api/2fa/setup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
+        const res = await fetch('/api/2fa/setup', { method: 'POST' });
+        const data = await res.json();
         if (data.success) {
             document.getElementById('qr-code').src = data.qr_code;
             document.getElementById('secret-key').textContent = data.secret;
             document.getElementById('2fa-setup').style.display = 'block';
-        } else {
-            showToast(data.error || 'Ошибка', 'error');
         }
-    } catch (error) {
-        showToast('Ошибка настройки 2FA', 'error');
-    }
+    } catch (e) {}
 }
 
 async function verify2FA() {
     const code = document.getElementById('totp-code').value;
-    
-    if (!code || code.length !== 6) {
-        showToast('Введите 6-значный код', 'error');
-        return;
-    }
-    
+    if (!code || code.length !== 6) return showToast('Введите 6-значный код', 'error');
+
     try {
-        const response = await fetch('/api/2fa/verify', {
+        const res = await fetch('/api/2fa/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code })
         });
-        
-        const data = await response.json();
-        
+        const data = await res.json();
         if (data.success) {
-            showToast('2FA успешно подключена!', 'success');
+            showToast('2FA подключена!', 'success');
             currentUser.totp_enabled = true;
             updateUserUI();
             document.getElementById('2fa-setup').style.display = 'none';
-            document.getElementById('totp-code').value = '';
         } else {
-            showToast(data.error || 'Неверный код', 'error');
+            showToast(data.error, 'error');
         }
-    } catch (error) {
-        showToast('Ошибка проверки кода', 'error');
-    }
+    } catch (e) {}
 }
 
 async function disable2FA() {
-    const code = prompt('Введите код из аутентификатора для отключения 2FA:');
-    
+    const code = prompt('Введите код из аутентификатора:');
     if (!code) return;
-    
+
     try {
-        const response = await fetch('/api/2fa/disable', {
+        const res = await fetch('/api/2fa/disable', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code })
         });
-        
-        const data = await response.json();
-        
+        const data = await res.json();
         if (data.success) {
             showToast('2FA отключена', 'success');
             currentUser.totp_enabled = false;
             updateUserUI();
         } else {
-            showToast(data.error || 'Ошибка', 'error');
+            showToast(data.error, 'error');
         }
-    } catch (error) {
-        showToast('Ошибка отключения 2FA', 'error');
-    }
+    } catch (e) {}
 }
 
-function copySecret() {
-    const secret = document.getElementById('secret-key').textContent;
-    navigator.clipboard.writeText(secret)
-        .then(() => showToast('Секретный ключ скопирован!', 'success'))
-        .catch(() => showToast('Не удалось скопировать', 'error'));
+// ==================== UTILS ====================
+function formatRub(a) {
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 2 }).format(a || 0);
 }
 
-// ==================== LOGOUT ====================
-function logout() {
-    currentUser = null;
-    window.location.reload();
+function formatDate(d) {
+    return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(d));
 }
 
-// ==================== UTILITIES ====================
-function formatRub(amount) {
-    return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        minimumFractionDigits: 2
-    }).format(amount || 0);
+function showToast(msg, type = 'info') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 3000);
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    }).format(date);
-}
-
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type}`;
-    toast.style.display = 'block';
-    
-    setTimeout(() => {
-        toast.style.display = 'none';
-    }, 3000);
-}
-
-// Close modal on outside click
 document.getElementById('profile-modal')?.addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeProfile();
-    }
+    if (e.target === this) closeProfile();
 });
