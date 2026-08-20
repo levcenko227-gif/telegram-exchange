@@ -644,4 +644,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
   console.log(`📱 Telegram Mini App: http://localhost:${PORT}`);
   console.log(`🔧 Админ-панель: http://localhost:${PORT}/admin`);
-  console.log(`\n👤 
+  console.log(`\n👤 Логин админа: admin`);
+  console.log(`🔑 Пароль админа: admin123`);
+});
