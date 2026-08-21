@@ -1,16 +1,12 @@
-// ==================== GLOBALS ====================
 let currentUser = null;
 let currentTransaction = null;
 
-// ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
-    // Auth buttons
     document.getElementById('btn-login').addEventListener('click', handleLogin);
     document.getElementById('btn-register').addEventListener('click', handleRegister);
     document.getElementById('link-register').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
     document.getElementById('link-login').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
     
-    // Main app buttons
     document.getElementById('btn-profile').addEventListener('click', showProfile);
     document.getElementById('btn-refresh').addEventListener('click', loadRate);
     document.getElementById('btn-exchange').addEventListener('click', createExchange);
@@ -18,17 +14,15 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cancel').addEventListener('click', cancelExchange);
     document.getElementById('btn-copy').addEventListener('click', copyAddress);
     
-    // Profile buttons
     document.getElementById('btn-close-profile').addEventListener('click', closeProfile);
     document.getElementById('btn-change-pass').addEventListener('click', changePassword);
+    document.getElementById('btn-change-login').addEventListener('click', changeUsername);
     document.getElementById('btn-2fa').addEventListener('click', setup2FA);
     document.getElementById('btn-verify-2fa').addEventListener('click', verify2FA);
     document.getElementById('btn-logout').addEventListener('click', doLogout);
     
-    // Input handler
     document.getElementById('amount-usdt').addEventListener('input', calcPreview);
     
-    // Check session
     checkSession();
 });
 
@@ -43,7 +37,6 @@ async function checkSession() {
     } catch (e) {}
 }
 
-// ==================== AUTH ====================
 function showLogin() {
     document.getElementById('login-form').style.display = 'block';
     document.getElementById('register-form').style.display = 'none';
@@ -89,7 +82,7 @@ async function handleLogin() {
             errEl.style.display = 'block';
         }
     } catch (e) {
-        errEl.textContent = 'Ошибка подключения';
+        errEl.textContent = 'Ошибка подключения к серверу';
         errEl.style.display = 'block';
     }
 }
@@ -144,7 +137,7 @@ async function handleRegister() {
             errEl.style.display = 'block';
         }
     } catch (e) {
-        errEl.textContent = 'Ошибка подключения';
+        errEl.textContent = 'Ошибка подключения к серверу';
         errEl.style.display = 'block';
     }
 }
@@ -155,7 +148,6 @@ async function doLogout() {
     location.reload();
 }
 
-// ==================== SHOW APP ====================
 function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'block';
@@ -187,7 +179,6 @@ function updateUserUI() {
     }
 }
 
-// ==================== RATE ====================
 async function loadRate() {
     try {
         const res = await fetch('/api/exchange/rate');
@@ -211,7 +202,6 @@ function calcPreview() {
     }
 }
 
-// ==================== EXCHANGE ====================
 async function createExchange() {
     const amount = parseFloat(document.getElementById('amount-usdt').value);
     if (!amount || amount <= 0) return showToast('Введите сумму', 'error');
@@ -270,7 +260,6 @@ function copyAddress() {
     navigator.clipboard.writeText(addr).then(() => showToast('Скопировано!', 'success'));
 }
 
-// ==================== TRANSACTIONS ====================
 async function loadTransactions() {
     try {
         const res = await fetch('/api/transactions');
@@ -304,7 +293,6 @@ function statusText(s) {
     return { pending: 'Ожидает', confirmed: 'Подтверждено', rejected: 'Отклонено' }[s] || s;
 }
 
-// ==================== PROFILE ====================
 function showProfile() {
     document.getElementById('profile-modal').style.display = 'flex';
 }
@@ -337,7 +325,29 @@ async function changePassword() {
     } catch (e) {}
 }
 
-// ==================== 2FA ====================
+async function changeUsername() {
+    const newLogin = document.getElementById('new-login').value;
+
+    if (!newLogin || newLogin.length < 3) return showToast('Логин минимум 3 символа', 'error');
+
+    try {
+        const res = await fetch('/api/user/change-username', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_username: newLogin })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Логин изменён!', 'success');
+            currentUser.username = newLogin;
+            updateUserUI();
+            document.getElementById('new-login').value = '';
+        } else {
+            showToast(data.error, 'error');
+        }
+    } catch (e) {}
+}
+
 async function setup2FA() {
     try {
         const res = await fetch('/api/2fa/setup', { method: 'POST' });
@@ -393,7 +403,6 @@ async function disable2FA() {
     } catch (e) {}
 }
 
-// ==================== UTILS ====================
 function formatRub(a) {
     return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 2 }).format(a || 0);
 }
