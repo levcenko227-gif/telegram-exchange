@@ -4,6 +4,31 @@ let currentTransaction = null;
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
+    // Auth buttons
+    document.getElementById('btn-login').addEventListener('click', handleLogin);
+    document.getElementById('btn-register').addEventListener('click', handleRegister);
+    document.getElementById('link-register').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
+    document.getElementById('link-login').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
+    
+    // Main app buttons
+    document.getElementById('btn-profile').addEventListener('click', showProfile);
+    document.getElementById('btn-refresh').addEventListener('click', loadRate);
+    document.getElementById('btn-exchange').addEventListener('click', createExchange);
+    document.getElementById('btn-confirm-sent').addEventListener('click', confirmSent);
+    document.getElementById('btn-cancel').addEventListener('click', cancelExchange);
+    document.getElementById('btn-copy').addEventListener('click', copyAddress);
+    
+    // Profile buttons
+    document.getElementById('btn-close-profile').addEventListener('click', closeProfile);
+    document.getElementById('btn-change-pass').addEventListener('click', changePassword);
+    document.getElementById('btn-2fa').addEventListener('click', setup2FA);
+    document.getElementById('btn-verify-2fa').addEventListener('click', verify2FA);
+    document.getElementById('btn-logout').addEventListener('click', doLogout);
+    
+    // Input handler
+    document.getElementById('amount-usdt').addEventListener('input', calcPreview);
+    
+    // Check session
     checkSession();
 });
 
@@ -34,6 +59,12 @@ async function handleLogin() {
     const password = document.getElementById('login-password').value;
     const totp = document.getElementById('login-totp').value;
     const errEl = document.getElementById('login-error');
+
+    if (!username || !password) {
+        errEl.textContent = 'Введите логин и пароль';
+        errEl.style.display = 'block';
+        return;
+    }
 
     try {
         const res = await fetch('/api/login', {
@@ -68,7 +99,24 @@ async function handleRegister() {
     const password = document.getElementById('reg-password').value;
     const errEl = document.getElementById('reg-error');
 
-    // Get Telegram user data if available
+    if (!username || !password) {
+        errEl.textContent = 'Введите логин и пароль';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    if (username.length < 3) {
+        errEl.textContent = 'Логин минимум 3 символа';
+        errEl.style.display = 'block';
+        return;
+    }
+
+    if (password.length < 6) {
+        errEl.textContent = 'Пароль минимум 6 символов';
+        errEl.style.display = 'block';
+        return;
+    }
+
     let telegramId = null;
     let firstName = username;
     if (window.Telegram && window.Telegram.WebApp) {
