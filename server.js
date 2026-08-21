@@ -16,7 +16,6 @@ const PORT = process.env.PORT || 3000;
 const db = new Database('exchange.db');
 db.pragma('journal_mode = WAL');
 
-// Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +74,6 @@ db.exec(`
   );
 `);
 
-// Insert default settings
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('base_rate', '88');
 insertSetting.run('markup_percent', '5');
@@ -83,7 +81,6 @@ insertSetting.run('trc20_wallet', 'YOUR_TRC20_WALLET_ADDRESS');
 insertSetting.run('min_exchange_usdt', '10');
 insertSetting.run('support_contact', '@support');
 
-// Create default admin
 const adminExists = db.prepare('SELECT id FROM admin_users WHERE username = ?').get('admin');
 if (!adminExists) {
   const hash = bcrypt.hashSync('admin123', 10);
@@ -98,19 +95,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'super-secret-key-change-in-production-' + Date.now(),
+  secret: process.env.SESSION_SECRET || 'super-secret-key-' + Date.now(),
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000
-  }
+  cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 10,
   message: { error: 'Слишком много попыток. Попробуйте через 15 минут.' }
 });
 
@@ -134,6 +127,24 @@ function isUserAuth(req, res, next) {
 function isAdminAuth(req, res, next) {
   if (req.session && req.session.adminId) return next();
   return res.status(401).json({ error: 'Не авторизован' });
+}
+
+function generateRandomString(length) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+function generatePassword(length = 8) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 // ==================== USER REGISTRATION ====================
@@ -199,14 +210,12 @@ app.post('/api/login', loginLimiter, (req, res) => {
     if (!totp_code) {
       return res.json({ requires_2fa: true });
     }
-
     const verified = speakeasy.totp.verify({
       secret: user.totp_secret,
       encoding: 'base32',
       token: totp_code,
       window: 1
     });
-
     if (!verified) {
       return res.status(401).json({ error: 'Неверный код 2FA' });
     }
@@ -214,7 +223,6 @@ app.post('/api/login', loginLimiter, (req, res) => {
 
   db.prepare('INSERT INTO login_attempts (ip_address, username, success) VALUES (?, ?, 1)').run(req.ip, username);
   db.prepare('UPDATE users SET failed_attempts = 0 WHERE id = ?').run(user.id);
-
   req.session.userId = user.id;
 
   res.json({
@@ -255,7 +263,6 @@ app.get('/api/user/profile', isUserAuth, (req, res) => {
 
 app.post('/api/user/change-password', isUserAuth, (req, res) => {
   const { current_password, new_password } = req.body;
-
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
 
   if (!bcrypt.compareSync(current_password, user.password_hash)) {
@@ -268,8 +275,23 @@ app.post('/api/user/change-password', isUserAuth, (req, res) => {
 
   const hash = bcrypt.hashSync(new_password, 10);
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.session.userId);
-
   res.json({ success: true, message: 'Пароль изменён' });
+});
+
+app.post('/api/user/change-username', isUserAuth, (req, res) => {
+  const { new_username } = req.body;
+  
+  if (!new_username || new_username.length < 3) {
+    return res.status(400).json({ error: 'Логин минимум 3 символа' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(new_username, req.session.userId);
+  if (existing) {
+    return res.status(400).json({ error: 'Этот логин уже занят' });
+  }
+
+  db.prepare('UPDATE users SET username = ? WHERE id = ?').run(new_username, req.session.userId);
+  res.json({ success: true, message: 'Логин изменён' });
 });
 
 // ==================== EXCHANGE RATE ====================
@@ -320,7 +342,6 @@ app.post('/api/exchange/create', isUserAuth, (req, res) => {
 
 app.post('/api/exchange/confirm-sent', isUserAuth, (req, res) => {
   const { transaction_id } = req.body;
-
   const transaction = db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ?')
     .get(transaction_id, req.session.userId);
 
@@ -409,14 +430,12 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
 
   if (admin.totp_enabled && admin.totp_secret) {
     if (!totp_code) return res.json({ requires_2fa: true });
-
     const verified = speakeasy.totp.verify({
       secret: admin.totp_secret,
       encoding: 'base32',
       token: totp_code,
       window: 1
     });
-
     if (!verified) return res.status(401).json({ error: 'Неверный код 2FA' });
   }
 
@@ -608,12 +627,57 @@ app.post('/api/admin/transactions/:id/reject', isAdminAuth, (req, res) => {
   res.json({ success: true, message: 'Отклонено' });
 });
 
+// ==================== ADMIN CREATE USER ====================
+app.post('/api/admin/create-user', isAdminAuth, (req, res) => {
+  const { custom_username, custom_password } = req.body;
+
+  let username = custom_username;
+  let password = custom_password;
+
+  if (!username) {
+    username = 'user_' + generateRandomString(6);
+  }
+  if (!password) {
+    password = generatePassword(8);
+  }
+
+  if (username.length < 3) {
+    return res.status(400).json({ error: 'Логин минимум 3 символа' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (existing) {
+    return res.status(400).json({ error: 'Этот логин уже занят' });
+  }
+
+  const hash = bcrypt.hashSync(password, 10);
+  const result = db.prepare(
+    'INSERT INTO users (username, password_hash, first_name, is_verified) VALUES (?, ?, ?, 1)'
+  ).run(username, hash, username);
+
+  res.json({
+    success: true,
+    user: {
+      id: result.lastInsertRowid,
+      username,
+      password,
+      balance_rub: 0
+    }
+  });
+});
+
+// ==================== ADMIN USERS ====================
 app.get('/api/admin/users', isAdminAuth, (req, res) => {
-  res.json(db.prepare('SELECT * FROM users ORDER BY created_at DESC').all());
+  const users = db.prepare('SELECT id, telegram_id, username, first_name, balance_rub, total_exchanged_usdt, total_received_rub, totp_enabled, is_blocked, is_verified, created_at FROM users ORDER BY created_at DESC').all();
+  res.json(users);
 });
 
 app.get('/api/admin/users/:id', isAdminAuth, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  const user = db.prepare('SELECT id, telegram_id, username, first_name, balance_rub, total_exchanged_usdt, total_received_rub, totp_enabled, is_blocked, is_verified, created_at FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: 'Не найден' });
 
   const transactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC').all(req.params.id);
@@ -649,6 +713,13 @@ app.post('/api/admin/users/:id/unblock', isAdminAuth, (req, res) => {
 app.post('/api/admin/users/:id/reset-2fa', isAdminAuth, (req, res) => {
   db.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+app.post('/api/admin/users/:id/reset-password', isAdminAuth, (req, res) => {
+  const new_password = generatePassword(8);
+  const hash = bcrypt.hashSync(new_password, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.params.id);
+  res.json({ success: true, new_password });
 });
 
 // ==================== STATIC FILES ====================
