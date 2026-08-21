@@ -12,7 +12,7 @@
         <div class="login-card">
             <div class="login-logo">🔐</div>
             <h1>Админ-панель</h1>
-            <form id="login-form" onsubmit="handleLogin(event)">
+            <form id="login-form">
                 <div class="form-group">
                     <label>Логин</label>
                     <input type="text" id="login-username" placeholder="admin" required>
@@ -39,20 +39,20 @@
                 <span class="sidebar-title">Admin</span>
             </div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">📊 Дашборд</a>
-                <a href="#" class="nav-item" data-page="transactions" onclick="showPage('transactions')">💱 Транзакции</a>
-                <a href="#" class="nav-item" data-page="users" onclick="showPage('users')">👥 Пользователи</a>
-                <a href="#" class="nav-item" data-page="settings" onclick="showPage('settings')">⚙️ Настройки</a>
-                <a href="#" class="nav-item" data-page="security" onclick="showPage('security')">🔐 Безопасность</a>
+                <a href="#" class="nav-item active" data-page="dashboard">📊 Дашборд</a>
+                <a href="#" class="nav-item" data-page="transactions">💱 Транзакции</a>
+                <a href="#" class="nav-item" data-page="users">👥 Пользователи</a>
+                <a href="#" class="nav-item" data-page="settings">⚙️ Настройки</a>
+                <a href="#" class="nav-item" data-page="security">🔐 Безопасность</a>
             </nav>
             <div class="sidebar-footer">
-                <button class="btn btn-logout" onclick="logout()">Выйти</button>
+                <button class="btn btn-logout" id="btn-logout">Выйти</button>
             </div>
         </aside>
 
         <main class="main-content">
             <header class="admin-header">
-                <button class="btn-menu" onclick="toggleSidebar()">☰</button>
+                <button class="btn-menu" id="btn-menu">☰</button>
                 <h1 id="page-title">Дашборд</h1>
             </header>
 
@@ -76,7 +76,7 @@
                     <div class="card">
                         <div class="card-header">
                             <h2>Транзакции</h2>
-                            <select id="filter-status" onchange="loadTransactions()">
+                            <select id="filter-status">
                                 <option value="">Все</option>
                                 <option value="pending">Ожидают</option>
                                 <option value="confirmed">Подтверждённые</option>
@@ -99,7 +99,7 @@
                 <div id="page-settings" class="page">
                     <div class="card">
                         <h2>Настройки обмена</h2>
-                        <form id="settings-form" onsubmit="saveSettings(event)">
+                        <form id="settings-form">
                             <div class="form-group"><label>Базовый курс USDT/RUB</label><input type="number" id="s-base_rate" step="0.01" required></div>
                             <div class="form-group"><label>Наценка (%)</label><input type="number" id="s-markup_percent" step="0.1" required></div>
                             <div class="form-group"><label>TRC-20 кошелёк</label><input type="text" id="s-trc20_wallet" required></div>
@@ -110,7 +110,7 @@
                     </div>
                     <div class="card" style="margin-top:20px;">
                         <h2>Итоговый курс</h2>
-                        <p style="font-size:24px;font-weight:700;color:var(--primary);" id="final-rate">--</p>
+                        <p style="font-size:32px;font-weight:800;color:var(--primary);margin:12px 0;" id="final-rate">--</p>
                         <p style="color:var(--gray-500);font-size:14px;">Базовый × (1 + Наценка%)</p>
                     </div>
                 </div>
@@ -122,17 +122,17 @@
                         <div class="form-group"><label>Текущий пароль</label><input type="password" id="admin-curr-pass"></div>
                         <div class="form-group"><label>Новый логин</label><input type="text" id="admin-new-user" placeholder="Оставьте пустым если не меняете"></div>
                         <div class="form-group"><label>Новый пароль</label><input type="password" id="admin-new-pass" placeholder="Оставьте пустым если не меняете"></div>
-                        <button class="btn btn-primary" onclick="changeAdminCreds()">Сохранить</button>
+                        <button class="btn btn-primary" id="btn-change-creds">Сохранить</button>
                     </div>
                     <div class="card" style="margin-top:20px;">
                         <h2>2FA аутентификация</h2>
-                        <p id="admin-2fa-status" style="margin-bottom:16px;">Проверка...</p>
-                        <button class="btn btn-primary" id="btn-admin-2fa" onclick="setupAdmin2FA()">Настроить 2FA</button>
-                        <div id="admin-2fa-setup" style="display:none;margin-top:16px;">
+                        <p id="admin-2fa-status" style="margin-bottom:16px;font-size:15px;">Проверка...</p>
+                        <button class="btn btn-primary" id="btn-setup-2fa">Настроить 2FA</button>
+                        <div id="admin-2fa-setup" style="display:none;margin-top:20px;">
                             <div class="qr-container"><img id="admin-qr" src=""></div>
                             <div class="secret-key"><code id="admin-secret">--</code></div>
                             <div class="form-group"><input type="text" id="admin-totp-code" placeholder="Код из приложения" maxlength="6"></div>
-                            <button class="btn btn-primary" onclick="verifyAdmin2FA()">Подтвердить</button>
+                            <button class="btn btn-primary" id="btn-verify-admin-2fa">Подтвердить</button>
                         </div>
                     </div>
                 </div>
@@ -143,4 +143,11 @@
     <!-- USER MODAL -->
     <div id="user-modal" class="modal" style="display:none;">
         <div class="modal-content">
-            <div class="modal-header"><h2>Детали 
+            <div class="modal-header"><h2>Детали пользователя</h2><button class="btn-close" id="btn-close-modal">✕</button></div>
+            <div class="modal-body" id="user-modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/js/admin.js"></script>
+</body>
+</html>
