@@ -31,9 +31,9 @@
                         <label>Код 2FA</label>
                         <input type="text" id="login-totp" placeholder="000000" maxlength="6">
                     </div>
-                    <button class="btn btn-primary btn-full" onclick="handleLogin()">Войти</button>
+                    <button class="btn btn-primary btn-full" id="btn-login" type="button">Войти</button>
                     <div id="login-error" class="error-msg" style="display:none;"></div>
-                    <p class="auth-switch">Нет аккаунта? <a href="#" onclick="showRegister()">Зарегистрироваться</a></p>
+                    <p class="auth-switch">Нет аккаунта? <a href="#" id="link-register">Зарегистрироваться</a></p>
                 </div>
 
                 <!-- Register Form -->
@@ -47,9 +47,9 @@
                         <label>Пароль</label>
                         <input type="password" id="reg-password" placeholder="Придумайте пароль">
                     </div>
-                    <button class="btn btn-primary btn-full" onclick="handleRegister()">Зарегистрироваться</button>
+                    <button class="btn btn-primary btn-full" id="btn-register" type="button">Зарегистрироваться</button>
                     <div id="reg-error" class="error-msg" style="display:none;"></div>
-                    <p class="auth-switch">Уже есть аккаунт? <a href="#" onclick="showLogin()">Войти</a></p>
+                    <p class="auth-switch">Уже есть аккаунт? <a href="#" id="link-login">Войти</a></p>
                 </div>
             </div>
         </div>
@@ -64,7 +64,7 @@
                     </div>
                     <div class="user-info">
                         <span id="user-balance" class="balance">0.00 ₽</span>
-                        <button class="btn-icon" onclick="showProfile()">👤</button>
+                        <button class="btn-icon" id="btn-profile" type="button">👤</button>
                     </div>
                 </div>
             </header>
@@ -90,7 +90,7 @@
                         <span>Базовый: <span id="base-rate">--</span> ₽</span>
                         <span>Наценка: <span id="markup">--</span>%</span>
                     </div>
-                    <button class="btn btn-small btn-refresh" onclick="loadRate()">🔄 Обновить</button>
+                    <button class="btn btn-small btn-refresh" id="btn-refresh" type="button">🔄 Обновить</button>
                 </div>
 
                 <!-- Exchange Form -->
@@ -99,7 +99,7 @@
                     <div class="form-group">
                         <label>Сумма USDT (TRC-20)</label>
                         <div class="input-wrapper">
-                            <input type="number" id="amount-usdt" placeholder="0.00" min="10" step="0.01" oninput="calcPreview()">
+                            <input type="number" id="amount-usdt" placeholder="0.00" min="10" step="0.01">
                             <span class="input-suffix">USDT</span>
                         </div>
                         <div class="min-amount">Минимум: <span id="min-amount">10</span> USDT</div>
@@ -110,7 +110,7 @@
                             <span id="preview-rub" class="highlight">0.00 ₽</span>
                         </div>
                     </div>
-                    <button class="btn btn-primary btn-full" onclick="createExchange()">Обменять</button>
+                    <button class="btn btn-primary btn-full" id="btn-exchange" type="button">Обменять</button>
                 </div>
 
                 <!-- Wallet Section -->
@@ -120,7 +120,7 @@
                         <label>Адрес TRC-20:</label>
                         <div class="address-box">
                             <code id="wallet-address">--</code>
-                            <button class="btn-copy" onclick="copyAddress()">📋</button>
+                            <button class="btn-copy" id="btn-copy" type="button">📋</button>
                         </div>
                     </div>
                     <div class="warning-box">
@@ -140,8 +140,8 @@
                             <span id="receive-amount">-- ₽</span>
                         </div>
                     </div>
-                    <button class="btn btn-primary btn-full" onclick="confirmSent()">Я отправил USDT</button>
-                    <button class="btn btn-secondary btn-full" onclick="cancelExchange()" style="margin-top:10px;">Отменить</button>
+                    <button class="btn btn-primary btn-full" id="btn-confirm-sent" type="button">Я отправил USDT</button>
+                    <button class="btn btn-secondary btn-full" id="btn-cancel" type="button" style="margin-top:10px;">Отменить</button>
                 </div>
 
                 <!-- History -->
@@ -162,7 +162,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Профиль</h2>
-                    <button class="btn-close" onclick="closeProfile()">✕</button>
+                    <button class="btn-close" id="btn-close-profile" type="button">✕</button>
                 </div>
                 <div class="modal-body">
                     <div class="profile-info">
@@ -179,7 +179,7 @@
                         <div class="form-group">
                             <input type="password" id="new-pass" placeholder="Новый пароль">
                         </div>
-                        <button class="btn btn-small btn-primary" onclick="changePassword()">Сменить пароль</button>
+                        <button class="btn btn-small btn-primary" id="btn-change-pass" type="button">Сменить пароль</button>
                     </div>
 
                     <div class="profile-section">
@@ -192,7 +192,7 @@
                                     <div class="security-status" id="2fa-status">Не подключена</div>
                                 </div>
                             </div>
-                            <button class="btn btn-small" id="btn-2fa" onclick="setup2FA()">Настроить</button>
+                            <button class="btn btn-small" id="btn-2fa" type="button">Настроить</button>
                         </div>
                     </div>
 
@@ -207,10 +207,10 @@
                         <div class="form-group">
                             <input type="text" id="totp-code" placeholder="Код из приложения" maxlength="6">
                         </div>
-                        <button class="btn btn-primary btn-full" onclick="verify2FA()">Подтвердить</button>
+                        <button class="btn btn-primary btn-full" id="btn-verify-2fa" type="button">Подтвердить</button>
                     </div>
 
-                    <button class="btn btn-danger btn-full" onclick="doLogout()" style="margin-top:20px;">Выйти</button>
+                    <button class="btn btn-danger btn-full" id="btn-logout" type="button" style="margin-top:20px;">Выйти</button>
                 </div>
             </div>
         </div>
