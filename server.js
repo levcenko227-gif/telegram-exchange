@@ -477,26 +477,187 @@ app.post('/api/admin/2fa/setup', isAdminAuth, async (req, res) => {
   }
 });
 
-app.post('/api/admin/change-password', isAdminAuth, (req, res) => {
-  const { current_password, new_password, new_username } = req.body;
-
+app.post('/api/admin/2fa/verify', isAdminAuth, (req, res) => {
+  const { code } = req.body;
   const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.session.adminId);
 
-  if (!bcrypt.compareSync(current_password, admin.password_hash)) {
-    return res.status(400).json({ error: 'Неверный текущий пароль' });
+  if (!admin.totp_secret) {
+    return res.status(400).json({ error: 'Сначала настройте 2FA' });
   }
 
-  if (new_password && new_password.length >= 6) {
-    const hash = bcrypt.hashSync(new_password, 10);
-    db.prepare('UPDATE admin_users SET password_hash = ? WHERE id = ?').run(hash, req.session.adminId);
+  const verified = speakeasy.totp.verify({
+    secret: admin.totp_secret,
+    encoding: 'base32',
+    token: code,
+    window: 2
+  });
+
+  if (verified) {
+    db.prepare('UPDATE admin_users SET totp_enabled = 1 WHERE id = ?').run(req.session.adminId);
+    res.json({ success: true, message: '2FA активирована!' });
+  } else {
+    res.status(400).json({ error: 'Неверный код. Проверьте время на телефоне.' });
+  }
+});
+
+app.post('/api/admin/2fa/disable', isAdminAuth, (req, res) => {
+  const { code } = req.body;
+  const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.session.adminId);
+
+  if (admin.totp_enabled && admin.totp_secret) {
+    const verified = speakeasy.totp.verify({
+      secret: admin.totp_secret,
+      encoding: 'base32',
+      token: code,
+      window: 2
+    });
+    if (!verified) return res.status(400).json({ error: 'Неверный код' });
   }
 
-  if (new_username && new_username.length >= 3) {
-    const existing = db.prepare('SELECT id FROM admin_users WHERE username = ? AND id != ?').get(new_username, req.session.adminId);
-    if (existing) return res.status(400).json({ error: 'Этот логин уже занят' });
-    db.prepare('UPDATE admin_users SET username = ? WHERE id = ?').run(new_username, req.session.adminId);
-    req.session.adminUsername = new_username;
+  db.prepare('UPDATE admin_users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.session.adminId);
+  res.json({ success: true, message: '2FA отключена' });
+});
+
+// ==================== ADMIN API ====================
+app.get('/api/admin/profile', isAdminAuth, (req, res) => {
+  const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.session.adminId);
+  res.json({
+    id: admin.id,
+    username: admin.username,
+    totp_enabled: admin.totp_enabled === 1
+  });
+});
+
+app.get('/api/admin/dashboard', isAdminAuth, (req, res) => {
+  const totalUsers = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+  const totalTransactions = db.prepare('SELECT COUNT(*) as count FROM transactions').get().count;
+  const pendingTransactions = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE status = 'pending'").get().count;
+  const totalVolumeUsdt = db.prepare("SELECT COALESCE(SUM(amount_usdt), 0) as total FROM transactions WHERE status = 'confirmed'").get().total;
+
+  const recentTransactions = db.prepare(`
+    SELECT t.*, u.username, u.first_name 
+    FROM transactions t 
+    JOIN users u ON t.user_id = u.id 
+    ORDER BY t.created_at DESC LIMIT 10
+  `).all();
+
+  res.json({
+    total_users: totalUsers,
+    total_transactions: totalTransactions,
+    pending_transactions: pendingTransactions,
+    total_volume_usdt: totalVolumeUsdt,
+    recent_transactions: recentTransactions
+  });
+});
+
+app.get('/api/admin/settings', isAdminAuth, (req, res) => {
+  const settings = {};
+  db.prepare('SELECT * FROM settings').all().forEach(row => {
+    settings[row.key] = row.value;
+  });
+  res.json(settings);
+});
+
+app.post('/api/admin/settings', isAdminAuth, (req, res) => {
+  const { key, value } = req.body;
+  const allowedKeys = ['base_rate', 'markup_percent', 'trc20_wallet', 'min_exchange_usdt', 'support_contact'];
+  if (!allowedKeys.includes(key)) return res.status(400).json({ error: 'Недопустимый ключ' });
+
+  db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(value, key);
+  res.json({ success: true });
+});
+
+app.get('/api/admin/transactions', isAdminAuth, (req, res) => {
+  const { status } = req.query;
+  let query = `SELECT t.*, u.username, u.first_name, u.telegram_id FROM transactions t JOIN users u ON t.user_id = u.id WHERE 1=1`;
+  const params = [];
+
+  if (status) { query += ' AND t.status = ?'; params.push(status); }
+  query += ' ORDER BY t.created_at DESC';
+
+  res.json(db.prepare(query).all(...params));
+});
+
+app.post('/api/admin/transactions/:id/confirm', isAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const { admin_comment } = req.body;
+
+  const t = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+  if (!t) return res.status(404).json({ error: 'Не найдена' });
+  if (t.status !== 'pending') return res.status(400).json({ error: 'Уже обработана' });
+
+  db.prepare("UPDATE transactions SET status = 'confirmed', admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(admin_comment || '', id);
+
+  if (t.type === 'exchange') {
+    db.prepare('UPDATE users SET balance_rub = balance_rub + ?, total_exchanged_usdt = total_exchanged_usdt + ?, total_received_rub = total_received_rub + ? WHERE id = ?')
+      .run(t.amount_rub, t.amount_usdt, t.amount_rub, t.user_id);
   }
 
-  res.json({ success: true, message: 'Данные обновлены' });
+  res.json({ success: true, message: 'Подтверждено' });
+});
+
+app.post('/api/admin/transactions/:id/reject', isAdminAuth, (req, res) => {
+  const { id } = req.params;
+  const { admin_comment } = req.body;
+
+  const t = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+  if (!t) return res.status(404).json({ error: 'Не найдена' });
+  if (t.status !== 'pending') return res.status(400).json({ error: 'Уже обработана' });
+
+  db.prepare("UPDATE transactions SET status = 'rejected', admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(admin_comment || '', id);
+  res.json({ success: true, message: 'Отклонено' });
+});
+
+app.get('/api/admin/users', isAdminAuth, (req, res) => {
+  res.json(db.prepare('SELECT * FROM users ORDER BY created_at DESC').all());
+});
+
+app.get('/api/admin/users/:id', isAdminAuth, (req, res) => {
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Не найден' });
+
+  const transactions = db.prepare('SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC').all(req.params.id);
+  res.json({ ...user, transactions });
+});
+
+app.post('/api/admin/users/:id/balance', isAdminAuth, (req, res) => {
+  const { amount, action } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Не найден' });
+
+  if (action === 'add') {
+    db.prepare('UPDATE users SET balance_rub = balance_rub + ? WHERE id = ?').run(amount, req.params.id);
+  } else {
+    if (user.balance_rub < amount) return res.status(400).json({ error: 'Недостаточно' });
+    db.prepare('UPDATE users SET balance_rub = balance_rub - ? WHERE id = ?').run(amount, req.params.id);
+  }
+
+  const updated = db.prepare('SELECT balance_rub FROM users WHERE id = ?').get(req.params.id);
+  res.json({ success: true, new_balance: updated.balance_rub });
+});
+
+app.post('/api/admin/users/:id/block', isAdminAuth, (req, res) => {
+  db.prepare('UPDATE users SET is_blocked = 1 WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/users/:id/unblock', isAdminAuth, (req, res) => {
+  db.prepare('UPDATE users SET is_blocked = 0 WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/admin/users/:id/reset-2fa', isAdminAuth, (req, res) => {
+  db.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
+// ==================== STATIC FILES ====================
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+
+// ==================== START ====================
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
+  console.log(`📱 Приложение: http://localhost:${PORT}`);
+  console.log(`🔧 Админка: http://localhost:${PORT}/admin`);
 });
