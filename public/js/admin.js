@@ -1,6 +1,36 @@
 let currentPage = 'dashboard';
 
-document.addEventListener('DOMContentLoaded', checkAuth);
+document.addEventListener('DOMContentLoaded', () => {
+    // Login form
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            showPage(item.dataset.page);
+        });
+    });
+    
+    // Buttons
+    document.getElementById('btn-logout').addEventListener('click', logout);
+    document.getElementById('btn-menu').addEventListener('click', toggleSidebar);
+    document.getElementById('btn-change-creds').addEventListener('click', changeAdminCreds);
+    document.getElementById('btn-setup-2fa').addEventListener('click', setupAdmin2FA);
+    document.getElementById('btn-verify-admin-2fa').addEventListener('click', verifyAdmin2FA);
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+        document.getElementById('user-modal').style.display = 'none';
+    });
+    
+    // Settings form
+    document.getElementById('settings-form').addEventListener('submit', saveSettings);
+    
+    // Filter
+    document.getElementById('filter-status').addEventListener('change', loadTransactions);
+    
+    // Check auth
+    checkAuth();
+});
 
 async function checkAuth() {
     try {
@@ -342,8 +372,8 @@ function fmtDate(d) { return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', 
 
 function notify(msg, type = 'info') {
     const n = document.createElement('div');
-    n.style.cssText = `position:fixed;top:20px;right:20px;padding:16px 24px;border-radius:12px;color:white;font-weight:600;z-index:10000;max-width:400px;`;
-    n.style.background = { success: '#10b981', error: '#ef4444', info: '#3b82f6' }[type] || '#3b82f6';
+    n.style.cssText = `position:fixed;top:24px;right:24px;padding:16px 24px;border-radius:12px;color:white;font-weight:600;z-index:10000;max-width:400px;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);`;
+    n.style.background = { success: '#10b981', error: '#ef4444', info: '#6366f1' }[type] || '#6366f1';
     n.textContent = msg;
     document.body.appendChild(n);
     setTimeout(() => n.remove(), 3000);
