@@ -1,10 +1,9 @@
 let currentPage = 'dashboard';
+let lastCreatedUser = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Login form
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     
-    // Navigation
     document.querySelectorAll('.nav-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
@@ -12,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Buttons
     document.getElementById('btn-logout').addEventListener('click', logout);
     document.getElementById('btn-menu').addEventListener('click', toggleSidebar);
     document.getElementById('btn-change-creds').addEventListener('click', changeAdminCreds);
@@ -21,14 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-close-modal').addEventListener('click', () => {
         document.getElementById('user-modal').style.display = 'none';
     });
+    document.getElementById('btn-create-user').addEventListener('click', showCreateUserModal);
+    document.getElementById('btn-close-create-modal').addEventListener('click', () => {
+        document.getElementById('create-user-modal').style.display = 'none';
+        document.getElementById('created-user-info').style.display = 'none';
+    });
+    document.getElementById('btn-confirm-create').addEventListener('click', createUser);
     
-    // Settings form
     document.getElementById('settings-form').addEventListener('submit', saveSettings);
-    
-    // Filter
     document.getElementById('filter-status').addEventListener('change', loadTransactions);
     
-    // Check auth
     checkAuth();
 });
 
@@ -39,7 +39,6 @@ async function checkAuth() {
     } catch (e) {}
 }
 
-// ==================== LOGIN ====================
 async function handleLogin(e) {
     e.preventDefault();
     const username = document.getElementById('login-username').value;
@@ -85,7 +84,6 @@ async function logout() {
     location.reload();
 }
 
-// ==================== NAVIGATION ====================
 function showPage(page) {
     currentPage = page;
     document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === page));
@@ -103,7 +101,6 @@ function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('open');
 }
 
-// ==================== DASHBOARD ====================
 async function loadDashboard() {
     try {
         const res = await fetch('/api/admin/dashboard');
@@ -130,7 +127,6 @@ async function loadDashboard() {
     } catch (e) {}
 }
 
-// ==================== TRANSACTIONS ====================
 async function loadTransactions() {
     const status = document.getElementById('filter-status')?.value || '';
     try {
@@ -187,7 +183,6 @@ async function rejectTx(id) {
     else notify(data.error, 'error');
 }
 
-// ==================== USERS ====================
 async function loadUsers() {
     try {
         const res = await fetch('/api/admin/users');
@@ -233,7 +228,10 @@ async function viewUser(id) {
             <button class="btn btn-success btn-small" onclick="adjustBal(${u.id},'add')">+</button>
             <button class="btn btn-danger btn-small" onclick="adjustBal(${u.id},'subtract')">−</button>
         </div>
-        ${u.totp_enabled ? `<button class="btn btn-warning btn-small" onclick="reset2fa(${u.id})">Сбросить 2FA</button>` : ''}
+        <div style="display:flex;gap:8px;margin-top:12px;">
+            ${u.totp_enabled ? `<button class="btn btn-warning btn-small" onclick="reset2fa(${u.id})">Сбросить 2FA</button>` : ''}
+            <button class="btn btn-small" onclick="resetPassword(${u.id})">🔄 Сбросить пароль</button>
+        </div>
         <h4 style="margin-top:16px;">Транзакции</h4>
         ${u.transactions?.length ? u.transactions.slice(0, 10).map(t => `
             <div style="padding:8px;background:#f9fafb;border-radius:8px;margin:4px 0;font-size:13px;">
@@ -275,6 +273,56 @@ async function reset2fa(id) {
     await fetch(`/api/admin/users/${id}/reset-2fa`, { method: 'POST' });
     notify('2FA сброшена', 'success');
     viewUser(id);
+}
+
+async function resetPassword(id) {
+    if (!confirm('Сбросить пароль?')) return;
+    const res = await fetch(`/api/admin/users/${id}/reset-password`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+        notify(`Новый пароль: ${data.new_password}`, 'success');
+        alert(`Новый пароль для пользователя: ${data.new_password}\nСохраните его!`);
+    }
+}
+
+// ==================== CREATE USER ====================
+function showCreateUserModal() {
+    document.getElementById('create-user-modal').style.display = 'flex';
+    document.getElementById('new-user-username').value = '';
+    document.getElementById('new-user-password').value = '';
+    document.getElementById('created-user-info').style.display = 'none';
+}
+
+async function createUser() {
+    const custom_username = document.getElementById('new-user-username').value;
+    const custom_password = document.getElementById('new-user-password').value;
+
+    const res = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            custom_username: custom_username || undefined, 
+            custom_password: custom_password || undefined 
+        })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+        lastCreatedUser = data.user;
+        document.getElementById('created-username').textContent = data.user.username;
+        document.getElementById('created-password').textContent = data.user.password;
+        document.getElementById('created-user-info').style.display = 'block';
+        notify('Пользователь создан!', 'success');
+        loadUsers();
+    } else {
+        notify(data.error, 'error');
+    }
+}
+
+function copyCredentials() {
+    if (!lastCreatedUser) return;
+    const text = `Логин: ${lastCreatedUser.username}\nПароль: ${lastCreatedUser.password}`;
+    navigator.clipboard.writeText(text).then(() => notify('Скопировано!', 'success'));
 }
 
 // ==================== SETTINGS ====================
