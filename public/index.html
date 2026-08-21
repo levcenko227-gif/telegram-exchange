@@ -16,7 +16,6 @@
                 <h1>Exchange</h1>
                 <p>Обмен USDT на рубли</p>
 
-                <!-- Login Form -->
                 <div id="login-form" class="auth-form">
                     <h2>Вход</h2>
                     <div class="form-group">
@@ -36,7 +35,6 @@
                     <p class="auth-switch">Нет аккаунта? <a href="#" id="link-register">Зарегистрироваться</a></p>
                 </div>
 
-                <!-- Register Form -->
                 <div id="register-form" class="auth-form" style="display:none;">
                     <h2>Регистрация</h2>
                     <div class="form-group">
@@ -70,7 +68,6 @@
             </header>
 
             <main class="main">
-                <!-- Dashboard Stats -->
                 <div class="stats-row">
                     <div class="stat-mini">
                         <div class="stat-mini-label">Оборот USDT</div>
@@ -82,7 +79,6 @@
                     </div>
                 </div>
 
-                <!-- Rate Card -->
                 <div class="card rate-card">
                     <div class="rate-label">Текущий курс</div>
                     <div class="rate-value" id="current-rate">--</div>
@@ -93,7 +89,6 @@
                     <button class="btn btn-small btn-refresh" id="btn-refresh" type="button">🔄 Обновить</button>
                 </div>
 
-                <!-- Exchange Form -->
                 <div class="card" id="exchange-section">
                     <h2 class="card-title">Обмен USDT → RUB</h2>
                     <div class="form-group">
@@ -113,7 +108,6 @@
                     <button class="btn btn-primary btn-full" id="btn-exchange" type="button">Обменять</button>
                 </div>
 
-                <!-- Wallet Section -->
                 <div class="card" id="wallet-section" style="display:none;">
                     <h2 class="card-title">Отправьте USDT</h2>
                     <div class="wallet-address">
@@ -144,7 +138,6 @@
                     <button class="btn btn-secondary btn-full" id="btn-cancel" type="button" style="margin-top:10px;">Отменить</button>
                 </div>
 
-                <!-- History -->
                 <div class="card">
                     <h2 class="card-title">История операций</h2>
                     <div id="transactions-list" class="transactions-list">
@@ -169,6 +162,14 @@
                         <div class="profile-avatar">👤</div>
                         <div class="profile-name" id="profile-name">--</div>
                         <div class="profile-id" id="profile-id">--</div>
+                    </div>
+
+                    <div class="profile-section">
+                        <h3>Смена логина</h3>
+                        <div class="form-group">
+                            <input type="text" id="new-login" placeholder="Новый логин">
+                        </div>
+                        <button class="btn btn-small btn-primary" id="btn-change-login" type="button">Сменить логин</button>
                     </div>
 
                     <div class="profile-section">
