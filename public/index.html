@@ -15,22 +15,14 @@
                 <div class="auth-logo">💱</div>
                 <h1>CryptoSwaap</h1>
                 <p>Сервис, на котором вы сможете заработать</p>
-                <div id="login-form" class="auth-form">
-                    <h2>Вход</h2>
+                <div class="auth-form">
+                    <h2>Вход в личный кабинет</h2>
+                    <p style="color:var(--gray-500);font-size:13px;margin-bottom:16px;">Данные для входа получите у администратора</p>
                     <div class="form-group"><label>Логин</label><input type="text" id="login-username" placeholder="Ваш логин"></div>
                     <div class="form-group"><label>Пароль</label><input type="password" id="login-password" placeholder="Ваш пароль"></div>
                     <div class="form-group" id="login-2fa-group" style="display:none;"><label>Код 2FA</label><input type="text" id="login-totp" placeholder="000000" maxlength="6"></div>
                     <button class="btn btn-primary btn-full" id="btn-login" type="button">Войти</button>
                     <div id="login-error" class="error-msg" style="display:none;"></div>
-                    <p class="auth-switch">Нет аккаунта? <a href="#" id="link-register">Зарегистрироваться</a></p>
-                </div>
-                <div id="register-form" class="auth-form" style="display:none;">
-                    <h2>Регистрация</h2>
-                    <div class="form-group"><label>Логин</label><input type="text" id="reg-username" placeholder="Придумайте логин"></div>
-                    <div class="form-group"><label>Пароль</label><input type="password" id="reg-password" placeholder="Придумайте пароль"></div>
-                    <button class="btn btn-primary btn-full" id="btn-register" type="button">Зарегистрироваться</button>
-                    <div id="reg-error" class="error-msg" style="display:none;"></div>
-                    <p class="auth-switch">Уже есть аккаунт? <a href="#" id="link-login">Войти</a></p>
                 </div>
             </div>
         </div>
@@ -44,9 +36,9 @@
                     <a href="#" class="nav-item" data-page="orders">📦 Ордера</a>
                     <a href="#" class="nav-item" data-page="appeals">⚠️ Апелляции</a>
                     <a href="#" class="nav-item" data-page="balance">💰 Баланс</a>
+                    <a href="#" class="nav-item" data-page="withdraw">💸 Вывод</a>
                     <a href="#" class="nav-item" data-page="requisites">💳 Реквизиты</a>
                     <a href="#" class="nav-item" data-page="notifications">🔔 Уведомления</a>
-                    <a href="#" class="nav-item" data-page="verification">📋 Верификация</a>
                     <a href="#" class="nav-item" data-page="profile">👤 Профиль</a>
                 </nav>
                 <div class="sidebar-footer"><button class="btn btn-logout" id="btn-logout" type="button">Выйти</button></div>
@@ -63,18 +55,98 @@
                 </header>
 
                 <div class="content">
-                    <!-- VERIFICATION BANNER -->
-                    <div id="verification-banner" class="verification-banner" style="display:none;">
-                        <div class="banner-icon">⚠️</div>
-                        <div class="banner-text">
-                            <strong>Верификация не пройдена</strong>
-                            <p>Для полноценной работы пройдите верификацию</p>
+                    <!-- SETUP WIZARD -->
+                    <div id="page-setup" class="page" style="display:none;">
+                        <div class="card">
+                            <h2 class="card-title">🎉 Добро пожаловать в CryptoSwaap!</h2>
+                            <p style="color:var(--gray-600);margin-bottom:20px;">Для начала работы выполните обязательные шаги:</p>
+                            
+                            <div id="setup-steps">
+                                <!-- STEP 1: VERIFICATION -->
+                                <div class="setup-step" id="step-verification">
+                                    <div class="step-header">
+                                        <div>
+                                            <strong>📋 Шаг 1: Верификация</strong>
+                                            <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Загрузите документы для подтверждения личности</p>
+                                        </div>
+                                        <span id="step-verification-status" class="step-status">⏳</span>
+                                    </div>
+                                    <div id="step-verification-form" class="step-form">
+                                        <div class="form-group">
+                                            <label>Селфи с паспортом</label>
+                                            <input type="file" id="setup-v-selfie" accept="image/*" capture="user">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Фото первого разворота паспорта</label>
+                                            <input type="file" id="setup-v-passport" accept="image/*">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Фото с регистрацией</label>
+                                            <input type="file" id="setup-v-registration" accept="image/*">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Номер телефона</label>
+                                            <input type="tel" id="setup-v-phone" placeholder="+7 (999) 123-45-67">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Telegram</label>
+                                            <input type="text" id="setup-v-telegram" placeholder="@username">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Соцсети</label>
+                                            <input type="text" id="setup-v-social" placeholder="Ссылки через запятую">
+                                        </div>
+                                        <button class="btn btn-primary btn-full" id="btn-setup-submit-verification">Отправить на проверку</button>
+                                    </div>
+                                    <div id="step-verification-pending" class="step-pending" style="display:none;">
+                                        ⏳ Заявка на рассмотрении. Ожидайте подтверждения администратора.
+                                    </div>
+                                </div>
+                                
+                                <!-- STEP 2: PASSWORD -->
+                                <div class="setup-step locked" id="step-password">
+                                    <div class="step-header">
+                                        <div>
+                                            <strong>🔑 Шаг 2: Смена пароля</strong>
+                                            <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно смените пароль</p>
+                                        </div>
+                                        <span id="step-password-status" class="step-status">🔒</span>
+                                    </div>
+                                    <div id="step-password-form" class="step-form">
+                                        <div class="form-group"><label>Текущий пароль</label><input type="password" id="setup-current-pass" placeholder="Пароль от админа"></div>
+                                        <div class="form-group"><label>Новый пароль</label><input type="password" id="setup-new-pass" placeholder="Придумайте новый пароль"></div>
+                                        <button class="btn btn-primary btn-full" id="btn-setup-change-password">Сменить пароль</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- STEP 3: 2FA -->
+                                <div class="setup-step locked" id="step-2fa">
+                                    <div class="step-header">
+                                        <div>
+                                            <strong>🔐 Шаг 3: Двухфакторная аутентификация</strong>
+                                            <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно подключите 2FA</p>
+                                        </div>
+                                        <span id="step-2fa-status" class="step-status">🔒</span>
+                                    </div>
+                                    <div id="step-2fa-form" class="step-form">
+                                        <div class="qr-container"><img id="setup-qr-code" src="" alt="QR"></div>
+                                        <div class="secret-key"><label>Ключ:</label><code id="setup-secret-key">--</code></div>
+                                        <div class="form-group"><input type="text" id="setup-totp-code" placeholder="Код из приложения" maxlength="6"></div>
+                                        <button class="btn btn-primary btn-full" id="btn-setup-verify-2fa">Подключить 2FA</button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="setup-complete" class="step-complete" style="display:none;">
+                                <h3>✅ Всё готово!</h3>
+                                <p>Теперь вы можете полноценно пользоваться сервисом</p>
+                                <button class="btn btn-primary" style="margin-top:16px;" onclick="showDashboard()">Перейти в кабинет</button>
+                            </div>
                         </div>
-                        <button class="btn btn-small btn-primary" onclick="showPage('verification')">Пройти</button>
                     </div>
 
                     <!-- HOME -->
-                    <div id="page-home" class="page active">
+                    <div id="page-home" class="page">
                         <div class="welcome-card">
                             <h2>Добро пожаловать, <span id="welcome-name">--</span>!</h2>
                             <p>CryptoSwaap - ваш сервис для заработка</p>
@@ -118,11 +190,11 @@
                         </div>
                         <div class="card">
                             <h2 class="card-title">Пополнить баланс</h2>
-                            <div class="form-group"><label>Сеть</label><select id="deposit-network" class="input-select"></select></div>
+                            <div class="form-group"><label>Сеть/Монета</label><select id="deposit-network" class="input-select"></select></div>
                             <div class="form-group">
-                                <label>Сумма USDT</label>
-                                <div class="input-wrapper"><input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01"><span class="input-suffix">USDT</span></div>
-                                <div class="min-amount">Минимум: 20 USDT</div>
+                                <label>Сумма</label>
+                                <div class="input-wrapper"><input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01"><span class="input-suffix" id="coin-suffix">USDT</span></div>
+                                <div class="min-amount">Минимум: <span id="min-deposit">20</span></div>
                             </div>
                             <div class="exchange-preview" id="exchange-preview" style="display:none;">
                                 <div class="preview-row"><span>На баланс:</span><span id="preview-rub" class="highlight">0.00 ₽</span></div>
@@ -131,32 +203,51 @@
                             <button class="btn btn-primary btn-full" id="btn-deposit" type="button">Продолжить</button>
                         </div>
                         <div class="card" id="send-section" style="display:none;">
-                            <h2 class="card-title">Отправьте USDT</h2>
+                            <h2 class="card-title">Отправьте криптовалюту</h2>
                             <div class="wallet-address">
                                 <label>Адрес кошелька:</label>
                                 <div class="address-box"><code id="wallet-address">--</code><button class="btn-copy" id="btn-copy" type="button">📋</button></div>
                             </div>
-                            <div class="warning-box"><span class="warning-icon">⚠️</span><div><strong>Важно!</strong><p>Отправляйте только USDT в выбранной сети!</p></div></div>
+                            <div class="warning-box"><span class="warning-icon">⚠️</span><div><strong>Важно!</strong><p>Отправляйте только в выбранной сети!</p></div></div>
                             <div class="transaction-details">
-                                <div class="detail-row"><span>К отправке:</span><span id="send-amount">-- USDT</span></div>
+                                <div class="detail-row"><span>К отправке:</span><span id="send-amount">--</span></div>
                                 <div class="detail-row"><span>На баланс:</span><span id="receive-amount">-- ₽</span></div>
                                 <div class="detail-row"><span>Заработок:</span><span id="earn-amount">+-- ₽</span></div>
                             </div>
                             <div class="form-group"><label>Хеш транзакции (TX Hash)</label><input type="text" id="tx-hash" placeholder="Вставьте хеш транзакции"></div>
-                            <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил USDT</button>
+                            <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил</button>
                             <button class="btn btn-secondary btn-full" id="btn-cancel-deposit" type="button" style="margin-top:10px;">Отменить</button>
                         </div>
                         <div class="card">
-                            <h2 class="card-title">История депозитов</h2>
+                            <h2 class="card-title">История пополнений</h2>
                             <div id="deposits-list" class="orders-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- WITHDRAW -->
+                    <div id="page-withdraw" class="page">
+                        <div class="card">
+                            <h2 class="card-title">💸 Вывести средства</h2>
+                            <div class="info-box"><p>⚠️ Для вывода может потребоваться выписка со счёта или видео из личного кабинета банка</p></div>
+                            <div class="form-group">
+                                <label>Сумма вывода (₽)</label>
+                                <div class="input-wrapper"><input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01"><span class="input-suffix">₽</span></div>
+                                <div class="min-amount">Минимум: 1000 ₽ | Баланс: <span id="withdraw-balance">0</span> ₽</div>
+                            </div>
+                            <div class="form-group"><label>Выберите реквизиты</label><select id="withdraw-requisite" class="input-select"><option value="">Выберите реквизит</option></select></div>
+                            <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить вывод</button>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">История выводов</h2>
+                            <div id="withdrawals-list" class="orders-list"></div>
                         </div>
                     </div>
 
                     <!-- REQUISITES -->
                     <div id="page-requisites" class="page">
                         <div class="card">
-                            <h2 class="card-title">💳 Реквизиты</h2>
-                            <p style="color:var(--gray-500);font-size:14px;margin-bottom:16px;">Добавьте реквизиты для вывода. Включите реквизит, чтобы администратор видел его.</p>
+                            <h2 class="card-title">💳 Реквизиты для вывода</h2>
+                            <p style="color:var(--gray-500);font-size:14px;margin-bottom:16px;">Добавьте реквизиты и включите их, чтобы администратор видел для вывода.</p>
                             <div class="form-group"><label>ФИО</label><input type="text" id="req-name" placeholder="Иванов Иван Иванович"></div>
                             <div class="form-group"><label>Телефон</label><input type="tel" id="req-phone" placeholder="+7 (999) 123-45-67"></div>
                             <div class="form-group"><label>Банк</label><input type="text" id="req-bank" placeholder="Сбербанк / Тинькофф / ВТБ"></div>
@@ -165,17 +256,6 @@
                         <div class="card" style="margin-top:16px;">
                             <h2 class="card-title">Мои реквизиты</h2>
                             <div id="requisites-list"></div>
-                        </div>
-                        <div class="card" style="margin-top:16px;">
-                            <h2 class="card-title">💸 Вывести средства</h2>
-                            <div class="info-box"><p>⚠️ Для вывода может потребоваться выписка со счёта или видео из личного кабинета банка</p></div>
-                            <div class="form-group">
-                                <label>Сумма вывода (₽)</label>
-                                <div class="input-wrapper"><input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01"><span class="input-suffix">₽</span></div>
-                                <div class="min-amount">Минимум: 1000 ₽</div>
-                            </div>
-                            <div class="form-group"><label>Выберите реквизиты</label><select id="withdraw-requisite" class="input-select"><option value="">Выберите реквизит</option></select></div>
-                            <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить вывод</button>
                         </div>
                     </div>
 
@@ -187,42 +267,6 @@
                         </div>
                     </div>
 
-                    <!-- VERIFICATION -->
-                    <div id="page-verification" class="page">
-                        <div class="card">
-                            <h2 class="card-title">📋 Верификация аккаунта</h2>
-                            <div id="verification-status"></div>
-                            <div id="verification-form">
-                                <p style="color:var(--gray-600);font-size:14px;margin-bottom:20px;">Для полноценной работы пройдите верификацию. Отправьте:</p>
-                                <div class="form-group">
-                                    <label>Селфи с паспортом (URL фото)</label>
-                                    <input type="text" id="v-selfie" placeholder="Ссылка на фото">
-                                </div>
-                                <div class="form-group">
-                                    <label>Фото первого разворота паспорта (URL)</label>
-                                    <input type="text" id="v-passport" placeholder="Ссылка на фото">
-                                </div>
-                                <div class="form-group">
-                                    <label>Фото с регистрацией (URL)</label>
-                                    <input type="text" id="v-registration" placeholder="Ссылка на фото">
-                                </div>
-                                <div class="form-group">
-                                    <label>Номер телефона</label>
-                                    <input type="tel" id="v-phone" placeholder="+7 (999) 123-45-67">
-                                </div>
-                                <div class="form-group">
-                                    <label>Telegram</label>
-                                    <input type="text" id="v-telegram" placeholder="@username">
-                                </div>
-                                <div class="form-group">
-                                    <label>Соцсети (Instagram, VK и т.д.)</label>
-                                    <input type="text" id="v-social" placeholder="Ссылки через запятую">
-                                </div>
-                                <button class="btn btn-primary btn-full" id="btn-submit-verification" type="button">Отправить на проверку</button>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- PROFILE -->
                     <div id="page-profile" class="page">
                         <div class="card">
@@ -231,11 +275,6 @@
                                 <div class="profile-name" id="profile-name">--</div>
                                 <div class="profile-id" id="profile-id">--</div>
                             </div>
-                        </div>
-                        <div class="card" style="margin-top:16px;">
-                            <h2 class="card-title">Смена логина</h2>
-                            <div class="form-group"><input type="text" id="new-login" placeholder="Новый логин"></div>
-                            <button class="btn btn-small btn-primary" id="btn-change-login" type="button">Сменить</button>
                         </div>
                         <div class="card" style="margin-top:16px;">
                             <h2 class="card-title">Смена пароля</h2>
