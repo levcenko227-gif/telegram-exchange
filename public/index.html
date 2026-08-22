@@ -15,7 +15,6 @@
                 <div class="auth-logo">💱</div>
                 <h1>CryptoSwaap</h1>
                 <p>Сервис, на котором вы сможете заработать</p>
-
                 <div id="login-form" class="auth-form">
                     <h2>Вход</h2>
                     <div class="form-group"><label>Логин</label><input type="text" id="login-username" placeholder="Ваш логин"></div>
@@ -25,7 +24,6 @@
                     <div id="login-error" class="error-msg" style="display:none;"></div>
                     <p class="auth-switch">Нет аккаунта? <a href="#" id="link-register">Зарегистрироваться</a></p>
                 </div>
-
                 <div id="register-form" class="auth-form" style="display:none;">
                     <h2>Регистрация</h2>
                     <div class="form-group"><label>Логин</label><input type="text" id="reg-username" placeholder="Придумайте логин"></div>
@@ -39,165 +37,229 @@
 
         <!-- MAIN APP -->
         <div id="main-app" style="display:none;">
-            <header class="header">
-                <div class="header-content">
-                    <div class="logo"><span class="logo-icon">💱</span><span class="logo-text">CryptoSwaap</span></div>
-                    <div class="user-info">
-                        <span id="user-balance" class="balance">0.00 ₽</span>
-                        <button class="btn-icon" id="btn-profile" type="button">👤</button>
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header"><span class="sidebar-logo">💱</span><span class="sidebar-title">CryptoSwaap</span></div>
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-page="home">🏠 Главная</a>
+                    <a href="#" class="nav-item" data-page="orders">📦 Ордера</a>
+                    <a href="#" class="nav-item" data-page="appeals">⚠️ Апелляции</a>
+                    <a href="#" class="nav-item" data-page="balance">💰 Баланс</a>
+                    <a href="#" class="nav-item" data-page="requisites">💳 Реквизиты</a>
+                    <a href="#" class="nav-item" data-page="notifications">🔔 Уведомления</a>
+                    <a href="#" class="nav-item" data-page="verification">📋 Верификация</a>
+                    <a href="#" class="nav-item" data-page="profile">👤 Профиль</a>
+                </nav>
+                <div class="sidebar-footer"><button class="btn btn-logout" id="btn-logout" type="button">Выйти</button></div>
+            </aside>
+
+            <main class="main-content">
+                <header class="app-header">
+                    <button class="btn-menu" id="btn-menu" type="button">☰</button>
+                    <h1 id="page-title">Главная</h1>
+                    <div class="header-right">
+                        <span id="user-balance-header" class="balance-header">0.00 ₽</span>
+                        <button class="btn-online" id="btn-online" type="button">🔴 Офлайн</button>
                     </div>
-                </div>
-            </header>
+                </header>
 
-            <main class="main">
-                <!-- Welcome -->
-                <div class="card welcome-card">
-                    <h2>Добро пожаловать в <span class="highlight">CryptoSwaap</span></h2>
-                    <p>Сервис, на котором вы сможете заработать</p>
-                </div>
-
-                <!-- Stats -->
-                <div class="stats-grid">
-                    <div class="stat-mini"><div class="stat-mini-label">Сегодня</div><div class="stat-mini-value" id="stat-today">0 ₽</div></div>
-                    <div class="stat-mini"><div class="stat-mini-label">За неделю</div><div class="stat-mini-value" id="stat-week">0 ₽</div></div>
-                    <div class="stat-mini"><div class="stat-mini-label">За месяц</div><div class="stat-mini-value" id="stat-month">0 ₽</div></div>
-                    <div class="stat-mini"><div class="stat-mini-label">Заработано</div><div class="stat-mini-value" id="stat-earned">0 ₽</div></div>
-                </div>
-
-                <!-- Rate -->
-                <div class="card rate-card">
-                    <div class="rate-label">Текущий курс</div>
-                    <div class="rate-value" id="current-rate">--</div>
-                    <div class="rate-details">
-                        <span>Базовый: <span id="base-rate">--</span> ₽</span>
-                        <span>Ставка: <span id="markup">--</span>%</span>
-                    </div>
-                    <button class="btn btn-small btn-refresh" id="btn-refresh" type="button">🔄 Обновить</button>
-                </div>
-
-                <!-- Deposit -->
-                <div class="card" id="deposit-section">
-                    <h2 class="card-title">Пополнить баланс</h2>
-                    <div class="form-group">
-                        <label>Сеть</label>
-                        <select id="deposit-network" class="input-select"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Сумма USDT</label>
-                        <div class="input-wrapper">
-                            <input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01">
-                            <span class="input-suffix">USDT</span>
+                <div class="content">
+                    <!-- VERIFICATION BANNER -->
+                    <div id="verification-banner" class="verification-banner" style="display:none;">
+                        <div class="banner-icon">⚠️</div>
+                        <div class="banner-text">
+                            <strong>Верификация не пройдена</strong>
+                            <p>Для полноценной работы пройдите верификацию</p>
                         </div>
-                        <div class="min-amount">Минимум: <span id="min-deposit">20</span> USDT</div>
+                        <button class="btn btn-small btn-primary" onclick="showPage('verification')">Пройти</button>
                     </div>
-                    <div class="exchange-preview" id="exchange-preview" style="display:none;">
-                        <div class="preview-row"><span>Вы получите на баланс:</span><span id="preview-rub" class="highlight">0.00 ₽</span></div>
-                        <div class="preview-row"><span>Ваш заработок:</span><span id="preview-earned" class="earned">+0.00 ₽</span></div>
-                    </div>
-                    <button class="btn btn-primary btn-full" id="btn-deposit" type="button">Продолжить</button>
-                </div>
 
-                <!-- Send USDT -->
-                <div class="card" id="send-section" style="display:none;">
-                    <h2 class="card-title">Отправьте USDT</h2>
-                    <div class="wallet-address">
-                        <label>Адрес кошелька:</label>
-                        <div class="address-box">
-                            <code id="wallet-address">--</code>
-                            <button class="btn-copy" id="btn-copy" type="button">📋</button>
+                    <!-- HOME -->
+                    <div id="page-home" class="page active">
+                        <div class="welcome-card">
+                            <h2>Добро пожаловать, <span id="welcome-name">--</span>!</h2>
+                            <p>CryptoSwaap - ваш сервис для заработка</p>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-card"><div class="stat-label">Сегодня</div><div class="stat-value" id="stat-today-rub">0 ₽</div><div class="stat-sub" id="stat-today-deals">0 сделок</div></div>
+                            <div class="stat-card"><div class="stat-label">Вчера</div><div class="stat-value" id="stat-yesterday-rub">0 ₽</div><div class="stat-sub" id="stat-yesterday-deals">0 сделок</div></div>
+                            <div class="stat-card"><div class="stat-label">Неделя</div><div class="stat-value" id="stat-week-rub">0 ₽</div><div class="stat-sub" id="stat-week-deals">0 сделок</div></div>
+                            <div class="stat-card"><div class="stat-label">Прошлая неделя</div><div class="stat-value" id="stat-lastweek-rub">0 ₽</div><div class="stat-sub" id="stat-lastweek-deals">0 сделок</div></div>
+                            <div class="stat-card"><div class="stat-label">Месяц</div><div class="stat-value" id="stat-month-rub">0 ₽</div><div class="stat-sub" id="stat-month-deals">0 сделок</div></div>
+                            <div class="stat-card highlight"><div class="stat-label">Всего заработано</div><div class="stat-value" id="stat-total-earned">0 ₽</div><div class="stat-sub" id="stat-total-deals">0 сделок</div></div>
+                        </div>
+                        <div class="card">
+                            <h2 class="card-title">Активные ордера</h2>
+                            <div id="active-orders-list" class="orders-list"><div class="empty-state"><p>Нет активных ордеров</p></div></div>
                         </div>
                     </div>
-                    <div class="warning-box">
-                        <span class="warning-icon">⚠️</span>
-                        <div><strong>Важно!</strong><p>Отправляйте только USDT в выбранной сети!</p></div>
-                    </div>
-                    <div class="transaction-details">
-                        <div class="detail-row"><span>К отправке:</span><span id="send-amount">-- USDT</span></div>
-                        <div class="detail-row"><span>На баланс:</span><span id="receive-amount">-- ₽</span></div>
-                        <div class="detail-row"><span>Заработок:</span><span id="earn-amount">+-- ₽</span></div>
-                    </div>
-                    <div class="form-group">
-                        <label>Хеш транзакции (TX Hash)</label>
-                        <input type="text" id="tx-hash" placeholder="Вставьте хеш транзакции">
-                    </div>
-                    <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил USDT</button>
-                    <button class="btn btn-secondary btn-full" id="btn-cancel-deposit" type="button" style="margin-top:10px;">Отменить</button>
-                </div>
 
-                <!-- Withdrawal -->
-                <div class="card" id="withdrawal-section">
-                    <h2 class="card-title">💸 Вывести средства</h2>
-                    <div class="info-box">
-                        <p>⚠️ Для вывода может потребоваться выписка со счёта или видео из личного кабинета банка</p>
-                    </div>
-                    <div class="form-group">
-                        <label>Сумма вывода (₽)</label>
-                        <div class="input-wrapper">
-                            <input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01">
-                            <span class="input-suffix">₽</span>
+                    <!-- ORDERS -->
+                    <div id="page-orders" class="page">
+                        <div class="card">
+                            <h2 class="card-title">📦 Ордера</h2>
+                            <div class="filters"><select id="filter-orders"><option value="">Все</option><option value="active">Активные</option><option value="completed">Выполненные</option><option value="expired">Истёкшие</option><option value="failed">Неуспешные</option></select></div>
+                            <div id="orders-list" class="orders-list"></div>
                         </div>
-                        <div class="min-amount">Минимум: 1000 ₽ | Баланс: <span id="withdraw-balance">0</span> ₽</div>
                     </div>
-                    <div class="form-group"><label>ФИО</label><input type="text" id="withdraw-name" placeholder="Иванов Иван Иванович"></div>
-                    <div class="form-group"><label>Телефон</label><input type="tel" id="withdraw-phone" placeholder="+7 (999) 123-45-67"></div>
-                    <div class="form-group"><label>Банк</label><input type="text" id="withdraw-bank" placeholder="Сбербанк / Тинькофф / ВТБ"></div>
-                    <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить вывод</button>
 
-                    <div class="saved-requisites" id="saved-requisites" style="margin-top:20px;">
-                        <h3>Сохранённые реквизиты</h3>
-                        <div id="requisites-list"></div>
+                    <!-- APPEALS -->
+                    <div id="page-appeals" class="page">
+                        <div class="card">
+                            <h2 class="card-title">⚠️ Апелляции</h2>
+                            <div id="appeals-list" class="orders-list"></div>
+                        </div>
                     </div>
-                </div>
 
-                <!-- History -->
-                <div class="card">
-                    <h2 class="card-title">История операций</h2>
-                    <div id="transactions-list" class="transactions-list">
-                        <div class="empty-state"><span class="empty-icon">📊</span><p>Пока нет операций</p></div>
+                    <!-- BALANCE -->
+                    <div id="page-balance" class="page">
+                        <div class="card balance-card">
+                            <div class="balance-label">Ваш баланс</div>
+                            <div class="balance-value" id="balance-value">0.00 ₽</div>
+                        </div>
+                        <div class="card">
+                            <h2 class="card-title">Пополнить баланс</h2>
+                            <div class="form-group"><label>Сеть</label><select id="deposit-network" class="input-select"></select></div>
+                            <div class="form-group">
+                                <label>Сумма USDT</label>
+                                <div class="input-wrapper"><input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01"><span class="input-suffix">USDT</span></div>
+                                <div class="min-amount">Минимум: 20 USDT</div>
+                            </div>
+                            <div class="exchange-preview" id="exchange-preview" style="display:none;">
+                                <div class="preview-row"><span>На баланс:</span><span id="preview-rub" class="highlight">0.00 ₽</span></div>
+                                <div class="preview-row"><span>Заработок:</span><span id="preview-earned" class="earned">+0.00 ₽</span></div>
+                            </div>
+                            <button class="btn btn-primary btn-full" id="btn-deposit" type="button">Продолжить</button>
+                        </div>
+                        <div class="card" id="send-section" style="display:none;">
+                            <h2 class="card-title">Отправьте USDT</h2>
+                            <div class="wallet-address">
+                                <label>Адрес кошелька:</label>
+                                <div class="address-box"><code id="wallet-address">--</code><button class="btn-copy" id="btn-copy" type="button">📋</button></div>
+                            </div>
+                            <div class="warning-box"><span class="warning-icon">⚠️</span><div><strong>Важно!</strong><p>Отправляйте только USDT в выбранной сети!</p></div></div>
+                            <div class="transaction-details">
+                                <div class="detail-row"><span>К отправке:</span><span id="send-amount">-- USDT</span></div>
+                                <div class="detail-row"><span>На баланс:</span><span id="receive-amount">-- ₽</span></div>
+                                <div class="detail-row"><span>Заработок:</span><span id="earn-amount">+-- ₽</span></div>
+                            </div>
+                            <div class="form-group"><label>Хеш транзакции (TX Hash)</label><input type="text" id="tx-hash" placeholder="Вставьте хеш транзакции"></div>
+                            <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил USDT</button>
+                            <button class="btn btn-secondary btn-full" id="btn-cancel-deposit" type="button" style="margin-top:10px;">Отменить</button>
+                        </div>
+                        <div class="card">
+                            <h2 class="card-title">История депозитов</h2>
+                            <div id="deposits-list" class="orders-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- REQUISITES -->
+                    <div id="page-requisites" class="page">
+                        <div class="card">
+                            <h2 class="card-title">💳 Реквизиты</h2>
+                            <p style="color:var(--gray-500);font-size:14px;margin-bottom:16px;">Добавьте реквизиты для вывода. Включите реквизит, чтобы администратор видел его.</p>
+                            <div class="form-group"><label>ФИО</label><input type="text" id="req-name" placeholder="Иванов Иван Иванович"></div>
+                            <div class="form-group"><label>Телефон</label><input type="tel" id="req-phone" placeholder="+7 (999) 123-45-67"></div>
+                            <div class="form-group"><label>Банк</label><input type="text" id="req-bank" placeholder="Сбербанк / Тинькофф / ВТБ"></div>
+                            <button class="btn btn-primary btn-full" id="btn-save-req" type="button">Добавить реквизит</button>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">Мои реквизиты</h2>
+                            <div id="requisites-list"></div>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">💸 Вывести средства</h2>
+                            <div class="info-box"><p>⚠️ Для вывода может потребоваться выписка со счёта или видео из личного кабинета банка</p></div>
+                            <div class="form-group">
+                                <label>Сумма вывода (₽)</label>
+                                <div class="input-wrapper"><input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01"><span class="input-suffix">₽</span></div>
+                                <div class="min-amount">Минимум: 1000 ₽</div>
+                            </div>
+                            <div class="form-group"><label>Выберите реквизиты</label><select id="withdraw-requisite" class="input-select"><option value="">Выберите реквизит</option></select></div>
+                            <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить вывод</button>
+                        </div>
+                    </div>
+
+                    <!-- NOTIFICATIONS -->
+                    <div id="page-notifications" class="page">
+                        <div class="card">
+                            <div class="card-header"><h2>🔔 Уведомления</h2><button class="btn btn-small" id="btn-mark-read">Прочитать все</button></div>
+                            <div id="notifications-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- VERIFICATION -->
+                    <div id="page-verification" class="page">
+                        <div class="card">
+                            <h2 class="card-title">📋 Верификация аккаунта</h2>
+                            <div id="verification-status"></div>
+                            <div id="verification-form">
+                                <p style="color:var(--gray-600);font-size:14px;margin-bottom:20px;">Для полноценной работы пройдите верификацию. Отправьте:</p>
+                                <div class="form-group">
+                                    <label>Селфи с паспортом (URL фото)</label>
+                                    <input type="text" id="v-selfie" placeholder="Ссылка на фото">
+                                </div>
+                                <div class="form-group">
+                                    <label>Фото первого разворота паспорта (URL)</label>
+                                    <input type="text" id="v-passport" placeholder="Ссылка на фото">
+                                </div>
+                                <div class="form-group">
+                                    <label>Фото с регистрацией (URL)</label>
+                                    <input type="text" id="v-registration" placeholder="Ссылка на фото">
+                                </div>
+                                <div class="form-group">
+                                    <label>Номер телефона</label>
+                                    <input type="tel" id="v-phone" placeholder="+7 (999) 123-45-67">
+                                </div>
+                                <div class="form-group">
+                                    <label>Telegram</label>
+                                    <input type="text" id="v-telegram" placeholder="@username">
+                                </div>
+                                <div class="form-group">
+                                    <label>Соцсети (Instagram, VK и т.д.)</label>
+                                    <input type="text" id="v-social" placeholder="Ссылки через запятую">
+                                </div>
+                                <button class="btn btn-primary btn-full" id="btn-submit-verification" type="button">Отправить на проверку</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PROFILE -->
+                    <div id="page-profile" class="page">
+                        <div class="card">
+                            <div class="profile-info">
+                                <div class="profile-avatar">👤</div>
+                                <div class="profile-name" id="profile-name">--</div>
+                                <div class="profile-id" id="profile-id">--</div>
+                            </div>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">Смена логина</h2>
+                            <div class="form-group"><input type="text" id="new-login" placeholder="Новый логин"></div>
+                            <button class="btn btn-small btn-primary" id="btn-change-login" type="button">Сменить</button>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">Смена пароля</h2>
+                            <div class="form-group"><input type="password" id="current-pass" placeholder="Текущий пароль"></div>
+                            <div class="form-group"><input type="password" id="new-pass" placeholder="Новый пароль"></div>
+                            <button class="btn btn-small btn-primary" id="btn-change-pass" type="button">Сменить</button>
+                        </div>
+                        <div class="card" style="margin-top:16px;">
+                            <h2 class="card-title">🔐 Безопасность</h2>
+                            <div class="security-item">
+                                <div class="security-info"><span class="security-icon">🔐</span><div><div class="security-title">2FA аутентификация</div><div class="security-status" id="2fa-status">Не подключена</div></div></div>
+                                <button class="btn btn-small" id="btn-2fa" type="button">Настроить</button>
+                            </div>
+                            <div id="2fa-setup" style="display:none;margin-top:16px;">
+                                <div class="qr-container"><img id="qr-code" src="" alt="QR"></div>
+                                <div class="secret-key"><label>Ключ:</label><code id="secret-key">--</code></div>
+                                <div class="form-group"><input type="text" id="totp-code" placeholder="Код из приложения" maxlength="6"></div>
+                                <button class="btn btn-primary btn-full" id="btn-verify-2fa" type="button">Подтвердить</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
         </div>
-
-        <!-- Profile Modal -->
-        <div id="profile-modal" class="modal" style="display:none;">
-            <div class="modal-content">
-                <div class="modal-header"><h2>Профиль</h2><button class="btn-close" id="btn-close-profile" type="button">✕</button></div>
-                <div class="modal-body">
-                    <div class="profile-info">
-                        <div class="profile-avatar">👤</div>
-                        <div class="profile-name" id="profile-name">--</div>
-                        <div class="profile-id" id="profile-id">--</div>
-                    </div>
-                    <div class="profile-section">
-                        <h3>Смена логина</h3>
-                        <div class="form-group"><input type="text" id="new-login" placeholder="Новый логин"></div>
-                        <button class="btn btn-small btn-primary" id="btn-change-login" type="button">Сменить</button>
-                    </div>
-                    <div class="profile-section">
-                        <h3>Смена пароля</h3>
-                        <div class="form-group"><input type="password" id="current-pass" placeholder="Текущий пароль"></div>
-                        <div class="form-group"><input type="password" id="new-pass" placeholder="Новый пароль"></div>
-                        <button class="btn btn-small btn-primary" id="btn-change-pass" type="button">Сменить</button>
-                    </div>
-                    <div class="profile-section">
-                        <h3>Безопасность</h3>
-                        <div class="security-item">
-                            <div class="security-info"><span class="security-icon">🔐</span><div><div class="security-title">2FA</div><div class="security-status" id="2fa-status">Не подключена</div></div></div>
-                            <button class="btn btn-small" id="btn-2fa" type="button">Настроить</button>
-                        </div>
-                    </div>
-                    <div id="2fa-setup" style="display:none;">
-                        <div class="qr-container"><img id="qr-code" src="" alt="QR"></div>
-                        <div class="secret-key"><label>Ключ:</label><code id="secret-key">--</code></div>
-                        <div class="form-group"><input type="text" id="totp-code" placeholder="Код из приложения" maxlength="6"></div>
-                        <button class="btn btn-primary btn-full" id="btn-verify-2fa" type="button">Подтвердить</button>
-                    </div>
-                    <button class="btn btn-danger btn-full" id="btn-logout" type="button" style="margin-top:20px;">Выйти</button>
-                </div>
-            </div>
-        </div>
-
         <div id="toast" class="toast" style="display:none;"></div>
     </div>
     <script src="/js/app.js"></script>
