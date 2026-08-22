@@ -271,7 +271,7 @@ async function loadOrders() {
         const orders = await res.json();
         const tbody = document.getElementById('orders-body');
         if (!orders.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = orders.map(o => `<tr><td>${o.order_number}</td><td>${o.internal_id || ''} ${o.username}</td><td>${fmtRub(o.amount_rub)}</td><td><span class="badge badge-${o.status === 'active' ? 'pending' : o.status === 'completed' ? 'confirmed' : 'rejected'}">${orderStText(o.status)}</span></td><td>${fmtDate(o.created_at)}</td></tr>`).join('');
+        tbody.innerHTML = orders.map(o => `<tr><td>${o.order_number}</td><td>${o.internal_id || ''} ${o.username}</td><td>${fmtRub(o.amount_rub)}</td><td><span class="badge badge-${o.status === 'active' ? 'pending' : o.status === 'completed' ? 'confirmed' : 'rejected'}">${orderStText(o.status)}</span></td><td>${o.status === 'active' ? `<button class="btn btn-success btn-small" onclick="adminCompleteOrder(${o.id})">Завершить</button> <button class="btn btn-danger btn-small" onclick="adminCancelOrder(${o.id})">Отменить</button>` : ''}</td><td>${fmtDate(o.created_at)}</td></tr>`).join('');
     } catch (e) {}
 }
 
@@ -308,6 +308,20 @@ async function createOrder() {
 
 function orderStText(s) { return { active: 'Активный', completed: 'Выполнен', expired: 'Истёк', failed: 'Неуспешный' }[s] || s; }
 
+async function adminCompleteOrder(id) {
+    if (!confirm('Завершить ордер?')) return;
+    const res = await fetch(`/api/admin/orders/${id}/complete`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { notify('Ордер завершён', 'success'); loadOrders(); loadDashboard(); loadUsers(); } else notify(data.error, 'error');
+}
+
+async function adminCancelOrder(id) {
+    if (!confirm('Отменить ордер?')) return;
+    const res = await fetch(`/api/admin/orders/${id}/cancel`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { notify('Ордер отменён', 'success'); loadOrders(); loadDashboard(); } else notify(data.error, 'error');
+}
+
 // ==================== APPEALS ====================
 async function loadAppeals() {
     const status = document.getElementById('filter-appeal-status')?.value || '';
@@ -324,9 +338,12 @@ function showCreateAppealModal() { openModal('create-appeal-modal'); loadUsersFo
 
 async function createAppeal() {
     const userId = document.getElementById('appeal-user').value;
+    const internalId = document.getElementById('appeal-internal-id').value;
     const amount = document.getElementById('appeal-amount').value;
-    if (!userId || !amount) return notify('Заполните поля', 'error');
-    const res = await fetch('/api/admin/appeals/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user_id: userId, appeal_number: document.getElementById('appeal-number').value || undefined, order_number: document.getElementById('appeal-order').value, amount_rub: parseFloat(amount), description: document.getElementById('appeal-description').value }) });
+    if ((!userId && !internalId) || !amount) return notify('Выберите пользователя или введите ID', 'error');
+    const body = { appeal_number: document.getElementById('appeal-number').value || undefined, order_number: document.getElementById('appeal-order').value, amount_rub: parseFloat(amount), description: document.getElementById('appeal-description').value };
+    if (userId) body.user_id = userId; else body.internal_id = internalId;
+    const res = await fetch('/api/admin/appeals/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.success) { notify(`Апелляция ${data.appeal_number} создана!`, 'success'); closeModal('create-appeal-modal'); loadAppeals(); loadDashboard(); } else notify(data.error, 'error');
 }
@@ -370,7 +387,7 @@ async function loadWithdrawals() {
         const list = await res.json();
         const tbody = document.getElementById('withdrawals-body');
         if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = list.map(w => `<tr><td>${w.internal_id || '#' + w.id}</td><td>${w.username}</td><td>${fmtRub(w.amount_rub)}</td><td>${w.req_bank || '—'}</td><td>${w.req_name || '—'}</td><td><span class="badge badge-${w.status === 'completed' ? 'confirmed' : w.status}">${w.status === 'completed' ? 'Выполнен' : stText(w.status)}</span></td><td>${w.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmWithdrawal(${w.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectWithdrawal(${w.id})">✕</button>` : ''}</td></tr>`).join('');
+        tbody.innerHTML = list.map(w => `<tr><td>${w.internal_id || '#' + w.id}</td><td>${w.username}</td><td>${fmtRub(w.amount_rub)}</td><td>${w.req_bank || '—'}</td><td>${w.req_name || '—'}</td><td>${w.req_phone || '—'}</td><td><span class="badge badge-${w.status === 'completed' ? 'confirmed' : w.status}">${w.status === 'completed' ? 'Выполнен' : stText(w.status)}</span></td><td>${w.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmWithdrawal(${w.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectWithdrawal(${w.id})">✕</button>` : ''}</td></tr>`).join('');
     } catch (e) {}
 }
 
