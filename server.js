@@ -29,6 +29,7 @@ setInterval(() => {
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    internal_id TEXT UNIQUE,
     telegram_id TEXT,
     username TEXT UNIQUE,
     password_hash TEXT,
@@ -41,6 +42,8 @@ db.exec(`
     is_blocked INTEGER DEFAULT 0,
     is_verified INTEGER DEFAULT 0,
     is_online INTEGER DEFAULT 0,
+    password_changed INTEGER DEFAULT 0,
+    username_changed INTEGER DEFAULT 0,
     active_requisite_id INTEGER DEFAULT 0,
     failed_attempts INTEGER DEFAULT 0,
     lock_until INTEGER DEFAULT 0,
@@ -101,7 +104,8 @@ db.exec(`
     rate REAL,
     markup_percent REAL,
     earned_rub REAL,
-    network TEXT DEFAULT 'TRC-20',
+    network TEXT,
+    coin TEXT DEFAULT 'USDT',
     tx_hash TEXT,
     wallet_address TEXT,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'confirmed', 'rejected')),
@@ -177,9 +181,12 @@ insertSetting.run('support_contact', '@support');
 insertSetting.run('app_name', 'CryptoSwaap');
 insertSetting.run('order_timer_minutes', '15');
 insertSetting.run('networks', JSON.stringify([
-  { id: 'TRC-20', name: 'USDT TRC-20 (Tron)', enabled: true, wallet: 'YOUR_TRC20_WALLET' },
-  { id: 'BEP-20', name: 'USDT BEP-20 (BSC)', enabled: false, wallet: 'YOUR_BEP20_WALLET' },
-  { id: 'ERC-20', name: 'USDT ERC-20 (Ethereum)', enabled: false, wallet: 'YOUR_ERC20_WALLET' }
+  { id: 'TRC-20', name: 'USDT TRC-20 (Tron)', coin: 'USDT', enabled: true, wallet: 'YOUR_TRC20_WALLET' },
+  { id: 'BEP-20', name: 'USDT BEP-20 (BSC)', coin: 'USDT', enabled: false, wallet: 'YOUR_BEP20_WALLET' },
+  { id: 'ERC-20', name: 'USDT ERC-20 (Ethereum)', coin: 'USDT', enabled: false, wallet: 'YOUR_ERC20_WALLET' },
+  { id: 'BTC', name: 'Bitcoin (BTC)', coin: 'BTC', enabled: false, wallet: 'YOUR_BTC_WALLET' },
+  { id: 'ETH', name: 'Ethereum (ETH)', coin: 'ETH', enabled: false, wallet: 'YOUR_ETH_WALLET' },
+  { id: 'SOL', name: 'Solana (SOL)', coin: 'SOL', enabled: false, wallet: 'YOUR_SOL_WALLET' }
 ]));
 
 const adminExists = db.prepare('SELECT id FROM admin_users WHERE username = ?').get('admin');
@@ -210,22 +217,10 @@ function isUserAuth(req, res, next) { if (req.session?.userId) return next(); re
 function isAdminAuth(req, res, next) { if (req.session?.adminId) return next(); return res.status(401).json({ error: 'Не авторизован' }); }
 function genStr(l) { const c = 'abcdefghijklmnopqrstuvwxyz0123456789'; let r = ''; for (let i = 0; i < l; i++) r += c[Math.floor(Math.random() * c.length)]; return r; }
 function genPass(l = 8) { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'; let r = ''; for (let i = 0; i < l; i++) r += c[Math.floor(Math.random() * c.length)]; return r; }
+function genInternalId() { return 'CS-' + Date.now().toString(36).toUpperCase() + '-' + genStr(4).toUpperCase(); }
 function genOrderNum() { return 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + genStr(4).toUpperCase(); }
 function genAppealNum() { return 'APL-' + Date.now().toString(36).toUpperCase() + '-' + genStr(4).toUpperCase(); }
 // ==================== AUTH ====================
-app.post('/api/register', (req, res) => {
-  const { username, password, telegram_id, first_name } = req.body;
-  if (!username || !password) return res.status(400).json({ error: 'Логин и пароль обязательны' });
-  if (username.length < 3) return res.status(400).json({ error: 'Логин минимум 3 символа' });
-  if (password.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (existing) return res.status(400).json({ error: 'Логин уже занят' });
-  const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare('INSERT INTO users (telegram_id, username, password_hash, first_name, is_verified) VALUES (?, ?, ?, ?, 0)').run(telegram_id || null, username, hash, first_name || username, 0);
-  req.session.userId = result.lastInsertRowid;
-  res.json({ success: true, user: { id: result.lastInsertRowid, username, first_name: first_name || username, balance_rub: 0, totp_enabled: false, is_verified: false } });
-});
-
 app.post('/api/login', loginLimiter, (req, res) => {
   const { username, password, totp_code } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Введите логин и пароль' });
@@ -243,7 +238,7 @@ app.post('/api/login', loginLimiter, (req, res) => {
   db.prepare('INSERT INTO login_attempts (ip_address, username, success) VALUES (?, ?, 1)').run(req.ip, username);
   db.prepare('UPDATE users SET failed_attempts = 0 WHERE id = ?').run(user.id);
   req.session.userId = user.id;
-  res.json({ success: true, user: { id: user.id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1 } });
+  res.json({ success: true, user: { id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1 } });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -256,7 +251,7 @@ app.get('/api/user/profile', isUserAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return res.status(404).json({ error: 'Не найден' });
   const verification = db.prepare('SELECT * FROM verification_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1').get(req.session.userId);
-  res.json({ id: user.id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, verification_status: verification ? verification.status : 'none', created_at: user.created_at });
+  res.json({ id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1, verification_status: verification ? verification.status : 'none', created_at: user.created_at });
 });
 
 app.post('/api/user/change-password', isUserAuth, (req, res) => {
@@ -264,7 +259,7 @@ app.post('/api/user/change-password', isUserAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!bcrypt.compareSync(current_password, user.password_hash)) return res.status(400).json({ error: 'Неверный пароль' });
   if (new_password.length < 6) return res.status(400).json({ error: 'Минимум 6 символов' });
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.session.userId);
+  db.prepare('UPDATE users SET password_hash = ?, password_changed = 1 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.session.userId);
   res.json({ success: true });
 });
 
@@ -273,7 +268,7 @@ app.post('/api/user/change-username', isUserAuth, (req, res) => {
   if (!new_username || new_username.length < 3) return res.status(400).json({ error: 'Минимум 3 символа' });
   const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(new_username, req.session.userId);
   if (existing) return res.status(400).json({ error: 'Логин занят' });
-  db.prepare('UPDATE users SET username = ? WHERE id = ?').run(new_username, req.session.userId);
+  db.prepare('UPDATE users SET username = ?, username_changed = 1 WHERE id = ?').run(new_username, req.session.userId);
   res.json({ success: true });
 });
 
@@ -340,9 +335,9 @@ app.get('/api/appeals', isUserAuth, (req, res) => {
 });
 
 app.post('/api/deposit/create', isUserAuth, (req, res) => {
-  const { amount_usdt, network, tx_hash } = req.body;
+  const { amount_usdt, network, coin, tx_hash } = req.body;
   const minDeposit = parseFloat(getSetting('min_deposit_usdt') || '20');
-  if (!amount_usdt || amount_usdt < minDeposit) return res.status(400).json({ error: `Минимум: ${minDeposit} USDT` });
+  if (!amount_usdt || amount_usdt < minDeposit) return res.status(400).json({ error: `Минимум: ${minDeposit}` });
   if (!tx_hash || tx_hash.length < 10) return res.status(400).json({ error: 'Введите хеш транзакции' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (user.is_blocked) return res.status(403).json({ error: 'Аккаунт заблокирован' });
@@ -350,11 +345,11 @@ app.post('/api/deposit/create', isUserAuth, (req, res) => {
   const amountRub = amount_usdt * rate.final;
   const earnedRub = amount_usdt * rate.base * (rate.markup / 100);
   const networks = getNetworks();
-  const net = networks.find(n => n.id === (network || 'TRC-20'));
+  const net = networks.find(n => n.id === network);
   if (!net || !net.enabled) return res.status(400).json({ error: 'Сеть не поддерживается' });
-  const result = db.prepare(`INSERT INTO deposits (user_id, amount_usdt, amount_rub, rate, markup_percent, earned_rub, network, tx_hash, wallet_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(req.session.userId, amount_usdt, amountRub, rate.final, rate.markup, earnedRub, network || 'TRC-20', tx_hash, net.wallet);
-  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`💰 Депозит: ${amount_usdt} USDT от ${user.username}. Хеш: ${tx_hash}`, 'deposit');
+  const result = db.prepare(`INSERT INTO deposits (user_id, amount_usdt, amount_rub, rate, markup_percent, earned_rub, network, coin, tx_hash, wallet_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(req.session.userId, amount_usdt, amountRub, rate.final, rate.markup, earnedRub, network, coin || net.coin || 'USDT', tx_hash, net.wallet);
+  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`💰 Депозит: ${amount_usdt} ${coin || 'USDT'} (${network}) от ${user.username} [${user.internal_id}]. Хеш: ${tx_hash}`, 'deposit');
   res.json({ success: true, deposit_id: result.lastInsertRowid });
 });
 
@@ -372,7 +367,7 @@ app.post('/api/withdrawal/create', isUserAuth, (req, res) => {
   if (!req_data) return res.status(400).json({ error: 'Выберите реквизиты' });
   const result = db.prepare(`INSERT INTO withdrawals (user_id, amount_rub, requisite_id) VALUES (?, ?, ?)`).run(req.session.userId, amount_rub, requisite_id);
   db.prepare('UPDATE users SET balance_rub = balance_rub - ? WHERE id = ?').run(amount_rub, req.session.userId);
-  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`💸 Вывод: ${amount_rub} ₽ от ${user.username}. ${req_data.bank}, ${req_data.name}`, 'withdrawal');
+  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`💸 Вывод: ${amount_rub} ₽ от ${user.username} [${user.internal_id}]. ${req_data.bank}, ${req_data.name}`, 'withdrawal');
   res.json({ success: true, withdrawal_id: result.lastInsertRowid });
 });
 
@@ -565,7 +560,7 @@ app.get('/api/admin/dashboard', isAdminAuth, (req, res) => {
   const pendingAppeals = db.prepare("SELECT COUNT(*) as c FROM appeals WHERE status = 'pending'").get().c;
   const totalVolumeUsdt = db.prepare("SELECT COALESCE(SUM(amount_usdt),0) as t FROM deposits WHERE status = 'confirmed'").get().t;
   const totalEarned = db.prepare("SELECT COALESCE(SUM(earned_rub),0) as t FROM deposits WHERE status = 'confirmed'").get().t;
-  const recent = db.prepare(`SELECT d.*, u.username FROM deposits d JOIN users u ON d.user_id = u.id ORDER BY d.created_at DESC LIMIT 10`).all();
+  const recent = db.prepare(`SELECT d.*, u.username, u.internal_id FROM deposits d JOIN users u ON d.user_id = u.id ORDER BY d.created_at DESC LIMIT 10`).all();
   res.json({ total_users: totalUsers, online_users: onlineUsers, verified_users: verifiedUsers, pending_verifications: pendingVerifications, total_deposits: totalDeposits, pending_deposits: pendingDeposits, pending_withdrawals: pendingWithdrawals, active_orders: activeOrders, pending_appeals: pendingAppeals, total_volume_usdt: totalVolumeUsdt, total_earned_rub: totalEarned, recent_deposits: recent });
 });
 
@@ -585,7 +580,7 @@ app.post('/api/admin/settings', isAdminAuth, (req, res) => {
 
 app.get('/api/admin/verifications', isAdminAuth, (req, res) => {
   const { status } = req.query;
-  let query = `SELECT v.*, u.username FROM verification_requests v JOIN users u ON v.user_id = u.id WHERE 1=1`;
+  let query = `SELECT v.*, u.username, u.internal_id FROM verification_requests v JOIN users u ON v.user_id = u.id WHERE 1=1`;
   const params = [];
   if (status) { query += ' AND v.status = ?'; params.push(status); }
   query += ' ORDER BY v.created_at DESC';
@@ -612,7 +607,7 @@ app.post('/api/admin/verifications/:id/reject', isAdminAuth, (req, res) => {
 
 app.get('/api/admin/orders', isAdminAuth, (req, res) => {
   const { status } = req.query;
-  let query = `SELECT o.*, u.username FROM orders o JOIN users u ON o.user_id = u.id WHERE 1=1`;
+  let query = `SELECT o.*, u.username, u.internal_id FROM orders o JOIN users u ON o.user_id = u.id WHERE 1=1`;
   const params = [];
   if (status) { query += ' AND o.status = ?'; params.push(status); }
   query += ' ORDER BY o.created_at DESC';
@@ -636,7 +631,7 @@ app.post('/api/admin/orders/create', isAdminAuth, (req, res) => {
 
 app.get('/api/admin/appeals', isAdminAuth, (req, res) => {
   const { status } = req.query;
-  let query = `SELECT a.*, u.username FROM appeals a JOIN users u ON a.user_id = u.id WHERE 1=1`;
+  let query = `SELECT a.*, u.username, u.internal_id FROM appeals a JOIN users u ON a.user_id = u.id WHERE 1=1`;
   const params = [];
   if (status) { query += ' AND a.status = ?'; params.push(status); }
   query += ' ORDER BY a.created_at DESC';
@@ -667,7 +662,7 @@ app.post('/api/admin/appeals/:id/reject', isAdminAuth, (req, res) => {
 
 app.get('/api/admin/deposits', isAdminAuth, (req, res) => {
   const { status } = req.query;
-  let query = `SELECT d.*, u.username FROM deposits d JOIN users u ON d.user_id = u.id WHERE 1=1`;
+  let query = `SELECT d.*, u.username, u.internal_id FROM deposits d JOIN users u ON d.user_id = u.id WHERE 1=1`;
   const params = [];
   if (status) { query += ' AND d.status = ?'; params.push(status); }
   query += ' ORDER BY d.created_at DESC';
@@ -681,7 +676,7 @@ app.post('/api/admin/deposits/:id/confirm', isAdminAuth, (req, res) => {
   if (d.status !== 'pending') return res.status(400).json({ error: 'Уже обработан' });
   db.prepare("UPDATE deposits SET status = 'confirmed', admin_comment = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(admin_comment || '', req.params.id);
   db.prepare('UPDATE users SET balance_rub = balance_rub + ?, total_deposited_usdt = total_deposited_usdt + ?, total_earned_rub = total_earned_rub + ? WHERE id = ?').run(d.amount_rub, d.amount_usdt, d.earned_rub, d.user_id);
-  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(d.user_id, `✅ Депозит ${d.amount_usdt} USDT подтверждён`, 'success');
+  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(d.user_id, `✅ Депозит ${d.amount_usdt} ${d.coin || 'USDT'} подтверждён`, 'success');
   res.json({ success: true });
 });
 
@@ -693,7 +688,7 @@ app.post('/api/admin/deposits/:id/reject', isAdminAuth, (req, res) => {
 
 app.get('/api/admin/withdrawals', isAdminAuth, (req, res) => {
   const { status } = req.query;
-  let query = `SELECT w.*, u.username, r.name as req_name, r.bank as req_bank, r.phone as req_phone FROM withdrawals w JOIN users u ON w.user_id = u.id LEFT JOIN requisites r ON w.requisite_id = r.id WHERE 1=1`;
+  let query = `SELECT w.*, u.username, u.internal_id, r.name as req_name, r.bank as req_bank, r.phone as req_phone FROM withdrawals w JOIN users u ON w.user_id = u.id LEFT JOIN requisites r ON w.requisite_id = r.id WHERE 1=1`;
   const params = [];
   if (status) { query += ' AND w.status = ?'; params.push(status); }
   query += ' ORDER BY w.created_at DESC';
@@ -742,7 +737,7 @@ app.post('/api/admin/users/:id/unblock', isAdminAuth, (req, res) => { db.prepare
 app.post('/api/admin/users/:id/reset-2fa', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/reset-password', isAdminAuth, (req, res) => {
   const new_password = genPass(8);
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.params.id);
+  db.prepare('UPDATE users SET password_hash = ?, password_changed = 0 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.params.id);
   res.json({ success: true, new_password });
 });
 
@@ -755,8 +750,9 @@ app.post('/api/admin/create-user', isAdminAuth, (req, res) => {
   const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (existing) return res.status(400).json({ error: 'Логин занят' });
   const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare('INSERT INTO users (username, password_hash, first_name, is_verified) VALUES (?, ?, ?, 1)').run(username, hash, username);
-  res.json({ success: true, user: { id: result.lastInsertRowid, username, password, balance_rub: 0 } });
+  const internalId = genInternalId();
+  const result = db.prepare('INSERT INTO users (internal_id, username, password_hash, first_name, is_verified) VALUES (?, ?, ?, ?, 0)').run(internalId, username, hash, username);
+  res.json({ success: true, user: { id: result.lastInsertRowid, internal_id: internalId, username, password, balance_rub: 0 } });
 });
 
 app.get('/api/admin/notifications', isAdminAuth, (req, res) => {
