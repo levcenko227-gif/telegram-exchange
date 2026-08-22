@@ -237,6 +237,7 @@ db.exec(`
 // Add held_rub column if it doesn't exist (migration for existing DBs)
 try { db.prepare('ALTER TABLE users ADD COLUMN held_rub REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
 try { db.prepare('ALTER TABLE users ADD COLUMN withdrawal_pending REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
+try { db.prepare('ALTER TABLE requisites ADD COLUMN is_archived INTEGER DEFAULT 0').run(); } catch (e) { /* column already exists */ }
 
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('base_rate', '80');
@@ -495,14 +496,43 @@ app.get('/api/withdrawals', isUserAuth, (req, res) => {
 
 // ==================== REQUISITES ====================
 app.get('/api/requisites', isUserAuth, (req, res) => {
-  res.json(db.prepare('SELECT * FROM requisites WHERE user_id = ? ORDER BY is_active DESC, is_default DESC, created_at DESC').all(req.session.userId));
+  const { archived } = req.query;
+  if (archived === '1') {
+    res.json(db.prepare('SELECT * FROM requisites WHERE user_id = ? AND is_archived = 1 ORDER BY created_at DESC').all(req.session.userId));
+  } else {
+    res.json(db.prepare('SELECT * FROM requisites WHERE user_id = ? AND (is_archived = 0 OR is_archived IS NULL) ORDER BY is_active DESC, is_default DESC, created_at DESC').all(req.session.userId));
+  }
+});
+
+app.get('/api/requisites/stats', isUserAuth, (req, res) => {
+  const stats = db.prepare('SELECT r.id, r.bank, r.name, r.phone FROM requisites r WHERE r.user_id = ? AND (r.is_archived = 0 OR r.is_archived IS NULL)').all(req.session.userId);
+  const result = stats.map(r => {
+    const activeReqId = db.prepare('SELECT active_requisite_id FROM users WHERE id = ?').get(req.session.userId)?.active_requisite_id;
+    const completed = db.prepare("SELECT COUNT(*) as c FROM orders WHERE user_id = ? AND status = 'completed'").get(req.session.userId).c;
+    const failed = db.prepare("SELECT COUNT(*) as c FROM orders WHERE user_id = ? AND status IN ('failed','expired')").get(req.session.userId).c;
+    return { ...r, completed_orders: completed, failed_orders: failed, is_active: activeReqId === r.id };
+  });
+  res.json(result);
 });
 
 app.post('/api/requisites/save', isUserAuth, (req, res) => {
   const { name, phone, bank } = req.body;
   if (!name || !phone || !bank) return res.status(400).json({ error: 'Заполните все поля' });
-  const count = db.prepare('SELECT COUNT(*) as c FROM requisites WHERE user_id = ?').get(req.session.userId).c;
+  const existing = db.prepare('SELECT id FROM requisites WHERE user_id = ? AND name = ? AND phone = ? AND bank = ? AND (is_archived = 0 OR is_archived IS NULL)').get(req.session.userId, name, phone, bank);
+  if (existing) return res.status(400).json({ error: 'Такой реквизит уже существует' });
+  const count = db.prepare('SELECT COUNT(*) as c FROM requisites WHERE user_id = ? AND (is_archived = 0 OR is_archived IS NULL)').get(req.session.userId).c;
   db.prepare('INSERT INTO requisites (user_id, name, phone, bank, is_default) VALUES (?, ?, ?, ?, ?)').run(req.session.userId, name, phone, bank, count === 0 ? 1 : 0);
+  res.json({ success: true });
+});
+
+app.post('/api/requisites/:id/archive', isUserAuth, (req, res) => {
+  db.prepare('UPDATE requisites SET is_archived = 1, is_active = 0 WHERE id = ? AND user_id = ?').run(req.params.id, req.session.userId);
+  db.prepare('UPDATE users SET active_requisite_id = 0 WHERE id = ? AND active_requisite_id = ?').run(req.session.userId, req.params.id);
+  res.json({ success: true });
+});
+
+app.post('/api/requisites/:id/restore', isUserAuth, (req, res) => {
+  db.prepare('UPDATE requisites SET is_archived = 0 WHERE id = ? AND user_id = ?').run(req.params.id, req.session.userId);
   res.json({ success: true });
 });
 
@@ -748,21 +778,57 @@ app.get('/api/admin/orders', isAdminAuth, (req, res) => {
 });
 
 app.post('/api/admin/orders/create', isAdminAuth, (req, res) => {
-  const { user_id, order_number, amount_rub } = req.body;
-  if (!user_id || !amount_rub) return res.status(400).json({ error: 'Заполните поля' });
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+  const { user_id, internal_id, order_number, amount_rub } = req.body;
+  let uid = user_id;
+  if (!uid && internal_id) {
+    const found = db.prepare('SELECT id FROM users WHERE internal_id = ?').get(internal_id);
+    if (!found) return res.status(404).json({ error: 'Пользователь с таким ID не найден' });
+    uid = found.id;
+  }
+  if (!uid || !amount_rub) return res.status(400).json({ error: 'Заполните поля' });
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(uid);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   const num = order_number || genOrderNum();
   const timerMinutes = parseInt(getSetting('order_timer_minutes') || '15');
   const now = new Date();
   const endsAt = new Date(now.getTime() + timerMinutes * 60 * 1000);
   const result = db.prepare('INSERT INTO orders (user_id, order_number, amount_rub, timer_minutes, timer_started_at, timer_ends_at) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(user_id, num, amount_rub, timerMinutes, now.toISOString(), endsAt.toISOString());
-  // Reduce withdrawal_pending (order amount comes from withdrawal, not balance)
-  db.prepare('UPDATE users SET withdrawal_pending = MAX(0, withdrawal_pending - ?) WHERE id = ?').run(amount_rub, user_id);
-  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(user_id, `📦 Новый ордер ${num} на ${amount_rub} ₽. Таймер: ${timerMinutes} мин.`, 'order');
-  sendSSEToUser(user_id, 'new_order', { order_number: num, amount_rub, timer_minutes: timerMinutes });
+    .run(uid, num, amount_rub, timerMinutes, now.toISOString(), endsAt.toISOString());
+  db.prepare('UPDATE users SET withdrawal_pending = MAX(0, withdrawal_pending - ?) WHERE id = ?').run(amount_rub, uid);
+  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(uid, `📦 Новый ордер ${num} на ${amount_rub} ₽`, 'order');
+  sendSSEToUser(uid, 'new_order', { order_number: num, amount_rub, timer_minutes: timerMinutes });
   res.json({ success: true, order_id: result.lastInsertRowid, order_number: num });
+});
+
+app.post('/api/admin/orders/:id/complete', isAdminAuth, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Не найден' });
+  if (order.status !== 'active') return res.status(400).json({ error: 'Ордер не активен' });
+  db.prepare("UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id);
+  const wp = user.withdrawal_pending || 0;
+  if (wp >= order.amount_rub) {
+    db.prepare('UPDATE users SET withdrawal_pending = MAX(0, withdrawal_pending - ?), held_rub = MAX(0, held_rub - ?) WHERE id = ?').run(order.amount_rub, order.amount_rub, order.user_id);
+  } else {
+    const excess = order.amount_rub - wp;
+    db.prepare('UPDATE users SET withdrawal_pending = 0, held_rub = MAX(0, held_rub - ?), balance_rub = MAX(0, balance_rub - ?) WHERE id = ?').run(order.amount_rub, excess, order.user_id);
+  }
+  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id);
+  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(order.user_id, `✅ Ордер ${order.order_number} завершён админом.`, 'success');
+  sendSSEToUser(order.user_id, 'order_completed', { order_number: order.order_number });
+  sendSSEToUser(order.user_id, 'balance_update', { balance_rub: updatedUser.balance_rub, held_rub: updatedUser.held_rub, withdrawal_pending: updatedUser.withdrawal_pending });
+  res.json({ success: true });
+});
+
+app.post('/api/admin/orders/:id/cancel', isAdminAuth, (req, res) => {
+  const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+  if (!order) return res.status(404).json({ error: 'Не найден' });
+  if (order.status !== 'active') return res.status(400).json({ error: 'Ордер не активен' });
+  db.prepare("UPDATE orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  db.prepare('UPDATE users SET withdrawal_pending = withdrawal_pending + ? WHERE id = ?').run(order.amount_rub, order.user_id);
+  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(order.user_id, `❌ Ордер ${order.order_number} отменён админом.`, 'error');
+  sendSSEToUser(order.user_id, 'order_failed', { order_number: order.order_number });
+  res.json({ success: true });
 });
 
 // ==================== ADMIN APPEALS ====================
@@ -776,19 +842,24 @@ app.get('/api/admin/appeals', isAdminAuth, (req, res) => {
 });
 
 app.post('/api/admin/appeals/create', isAdminAuth, (req, res) => {
-  const { user_id, appeal_number, order_number, amount_rub, description } = req.body;
-  if (!user_id || !amount_rub) return res.status(400).json({ error: 'Заполните поля' });
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
+  const { user_id, internal_id, appeal_number, order_number, amount_rub, description } = req.body;
+  let uid = user_id;
+  if (!uid && internal_id) {
+    const found = db.prepare('SELECT id FROM users WHERE internal_id = ?').get(internal_id);
+    if (!found) return res.status(404).json({ error: 'Пользователь с таким ID не найден' });
+    uid = found.id;
+  }
+  if (!uid || !amount_rub) return res.status(400).json({ error: 'Заполните поля' });
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(uid);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   const num = appeal_number || genAppealNum();
   const result = db.prepare('INSERT INTO appeals (user_id, appeal_number, order_number, amount_rub, description) VALUES (?, ?, ?, ?, ?)')
-    .run(user_id, num, order_number || '', amount_rub, description || '');
-  // Hold appeal amount from balance
-  db.prepare('UPDATE users SET held_rub = held_rub + ? WHERE id = ?').run(amount_rub, user_id);
-  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(user_id, `⚠️ Апелляция ${num} на ${amount_rub} ₽. Средства заморожены.`, 'appeal');
-  sendSSEToUser(user_id, 'new_appeal', { appeal_number: num, amount_rub });
-  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(user_id);
-  sendSSEToUser(user_id, 'balance_update', { balance_rub: updatedUser.balance_rub, held_rub: updatedUser.held_rub, withdrawal_pending: updatedUser.withdrawal_pending });
+    .run(uid, num, order_number || '', amount_rub, description || '');
+  db.prepare('UPDATE users SET held_rub = held_rub + ? WHERE id = ?').run(amount_rub, uid);
+  db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(uid, `⚠️ Апелляция ${num} на ${amount_rub} ₽. Средства заморожены.`, 'appeal');
+  sendSSEToUser(uid, 'new_appeal', { appeal_number: num, amount_rub });
+  const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(uid);
+  sendSSEToUser(uid, 'balance_update', { balance_rub: updatedUser.balance_rub, held_rub: updatedUser.held_rub, withdrawal_pending: updatedUser.withdrawal_pending });
   res.json({ success: true, appeal_id: result.lastInsertRowid, appeal_number: num });
 });
 
