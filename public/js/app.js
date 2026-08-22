@@ -2,6 +2,9 @@ let currentUser = null;
 let currentDeposit = null;
 let networks = [];
 let orderTimers = {};
+let withdrawalTimers = {};
+let autoRefreshInterval = null;
+let eventSource = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-login').addEventListener('click', handleLogin);
@@ -78,6 +81,7 @@ function showSetupWizard() {
 function updateSetupSteps() {
     let allComplete = true;
     
+    // Step 1: Verification
     if (currentUser.is_verified) {
         document.getElementById('step-verification-status').textContent = '✅';
         document.getElementById('step-verification-form').style.display = 'none';
@@ -98,6 +102,7 @@ function updateSetupSteps() {
         allComplete = false;
     }
     
+    // Step 2: Password
     if (currentUser.password_changed) {
         document.getElementById('step-password-status').textContent = '✅';
         document.getElementById('step-password-form').style.display = 'none';
@@ -112,6 +117,7 @@ function updateSetupSteps() {
         allComplete = false;
     }
     
+    // Step 3: 2FA
     if (currentUser.totp_enabled) {
         document.getElementById('step-2fa-status').textContent = '✅';
         document.getElementById('step-2fa-form').style.display = 'none';
@@ -142,6 +148,7 @@ async function setupSubmitVerification() {
     
     if (!selfieFile || !passportFile || !phone) return showToast('Загрузите фото и укажите телефон', 'error');
     
+    // Convert files to base64
     const selfieBase64 = await fileToBase64(selfieFile);
     const passportBase64 = await fileToBase64(passportFile);
     const registrationBase64 = registrationFile ? await fileToBase64(registrationFile) : '';
@@ -227,6 +234,8 @@ function showDashboard() {
     loadRequisites();
     loadNotifications();
     updateOnlineButton();
+    startAutoRefresh();
+    connectSSE();
 }
 
 function showPage(page) {
@@ -247,12 +256,24 @@ function showPage(page) {
 
 function updateUserUI() {
     if (!currentUser) return;
-    document.getElementById('user-balance-header').textContent = formatRub(currentUser.balance_rub);
+    const held = currentUser.held_rub || 0;
+    const withdrawalPending = currentUser.withdrawal_pending || 0;
+    const available = currentUser.balance_rub - held;
+    document.getElementById('user-balance-header').textContent = formatRub(available);
     document.getElementById('welcome-name').textContent = currentUser.username;
     document.getElementById('profile-name').textContent = currentUser.username;
     document.getElementById('profile-id').textContent = `ID: ${currentUser.internal_id || '—'}`;
     document.getElementById('balance-value').textContent = formatRub(currentUser.balance_rub);
-    document.getElementById('withdraw-balance').textContent = formatRub(currentUser.balance_rub);
+    document.getElementById('withdraw-balance').textContent = formatRub(available);
+    // Show held and withdrawal pending info
+    const heldEl = document.getElementById('held-balance-info');
+    if (heldEl) {
+        let info = [];
+        if (held > 0) info.push(`🔒 Захолдено: ${formatRub(held)}`);
+        if (withdrawalPending > 0) info.push(`📤 Осталось до вывода: ${formatRub(withdrawalPending)}`);
+        if (info.length > 0) { heldEl.innerHTML = info.join('<br>'); heldEl.style.display = 'block'; }
+        else { heldEl.style.display = 'none'; }
+    }
     const s = document.getElementById('2fa-status'), b = document.getElementById('btn-2fa');
     if (currentUser.totp_enabled) { s.textContent = 'Подключена ✓'; s.classList.add('active'); b.textContent = 'Отключить'; b.onclick = () => disable2FA(); }
     else { s.textContent = 'Не подключена'; s.classList.remove('active'); b.textContent = 'Настроить'; b.onclick = () => setup2FA(); }
@@ -276,7 +297,7 @@ async function loadRate() {
         const data = await res.json();
         networks = data.networks || [];
         const select = document.getElementById('deposit-network');
-        if (select) select.innerHTML = networks.map(n => `<option value="${n.id}" data-coin="${n.coin || 'USDT'}">${n.name}</option>`).join('');
+        if (select) select.innerHTML = networks.map(n => `<option value="${n.id}" data-coin="${n.coin || 'USDT'}">${n.coin || 'USDT'} / ${n.id}</option>`).join('');
         updateCoinSuffix();
     } catch (e) {}
 }
@@ -292,18 +313,19 @@ async function loadStats() {
     try {
         const res = await fetch('/api/user/stats');
         const data = await res.json();
+        // Stats now show ORDER amounts (completed orders), not deposits
         document.getElementById('stat-today-rub').textContent = formatRub(data.today.rub);
-        document.getElementById('stat-today-deals').textContent = `${data.today.deals + data.today.orders} сделок`;
+        document.getElementById('stat-today-deals').textContent = `${data.today.orders} ордеров`;
         document.getElementById('stat-yesterday-rub').textContent = formatRub(data.yesterday.rub);
-        document.getElementById('stat-yesterday-deals').textContent = `${data.yesterday.deals + data.yesterday.orders} сделок`;
+        document.getElementById('stat-yesterday-deals').textContent = `${data.yesterday.orders} ордеров`;
         document.getElementById('stat-week-rub').textContent = formatRub(data.week.rub);
-        document.getElementById('stat-week-deals').textContent = `${data.week.deals + data.week.orders} сделок`;
+        document.getElementById('stat-week-deals').textContent = `${data.week.orders} ордеров`;
         document.getElementById('stat-lastweek-rub').textContent = formatRub(data.lastWeek.rub);
-        document.getElementById('stat-lastweek-deals').textContent = `${data.lastWeek.deals + data.lastWeek.orders} сделок`;
+        document.getElementById('stat-lastweek-deals').textContent = `${data.lastWeek.orders} ордеров`;
         document.getElementById('stat-month-rub').textContent = formatRub(data.month.rub);
-        document.getElementById('stat-month-deals').textContent = `${data.month.deals + data.month.orders} сделок`;
+        document.getElementById('stat-month-deals').textContent = `${data.month.orders} ордеров`;
         document.getElementById('stat-total-earned').textContent = formatRub(data.total.earned);
-        document.getElementById('stat-total-deals').textContent = `${data.total.deals + data.total.orders} сделок`;
+        document.getElementById('stat-total-deals').textContent = `${data.total.orders} ордеров`;
     } catch (e) {}
 }
 
@@ -333,7 +355,8 @@ function renderOrder(o) {
     const isActive = o.status === 'active';
     const timerHtml = isActive ? `<div class="order-timer" id="timer-${o.id}">Загрузка...</div>` : '';
     const actionsHtml = isActive ? `<div class="order-actions"><button class="btn btn-success btn-small" onclick="completeOrder(${o.id})">✅ Поступление успешно</button><button class="btn btn-danger btn-small" onclick="failOrder(${o.id})">❌ Не поступило</button></div>` : '';
-    return `<div class="order-item"><div class="order-header"><span class="order-number">${o.order_number}</span><span class="order-status status-${o.status}">${orderStText(o.status)}</span></div><div class="order-amount">${formatRub(o.amount_rub)}</div>${timerHtml}${actionsHtml}<div class="order-date">${formatDate(o.created_at)}</div></div>`;
+    const reqHtml = o.requisite ? `<div class="order-requisite"><div style="font-size:13px;color:var(--gray-600);margin-top:8px;padding:8px;background:var(--gray-100);border-radius:8px;"><strong>🏦 ${o.requisite.bank}</strong><br>👤 ${o.requisite.name}<br>📞 ${o.requisite.phone}</div></div>` : '';
+    return `<div class="order-item"><div class="order-header"><span class="order-number">${o.order_number}</span><span class="order-status status-${o.status}">${orderStText(o.status)}</span></div><div class="order-amount">${formatRub(o.amount_rub)}</div>${reqHtml}${timerHtml}${actionsHtml}<div class="order-date">${formatDate(o.created_at)}</div></div>`;
 }
 
 function orderStText(s) { return { active: 'Активный', completed: 'Выполнен', expired: 'Истёк', failed: 'Неуспешный' }[s] || s; }
@@ -445,7 +468,23 @@ async function createWithdrawal() {
     try {
         const res = await fetch('/api/withdrawal/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount_rub: amount, requisite_id: requisiteId }) });
         const data = await res.json();
-        if (data.success) { showToast('Заявка создана!', 'success'); document.getElementById('withdraw-amount').value = ''; loadStats(); updateUserUI(); loadWithdrawals(); } else showToast(data.error, 'error');
+        if (data.success) { 
+            showToast('Заявка создана! У вас 30 секунд на отмену.', 'success'); 
+            document.getElementById('withdraw-amount').value = ''; 
+            loadStats(); 
+            refreshUserProfile();
+            loadWithdrawals(); 
+        } else showToast(data.error, 'error');
+    } catch (e) { showToast('Ошибка', 'error'); }
+}
+
+async function cancelWithdrawal(id) {
+    if (!confirm('Отменить вывод? Средства вернутся на баланс.')) return;
+    try {
+        const res = await fetch(`/api/withdrawal/${id}/cancel`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) { showToast('Вывод отменён. Средства возвращены.', 'success'); refreshUserProfile(); loadWithdrawals(); }
+        else showToast(data.error, 'error');
     } catch (e) { showToast('Ошибка', 'error'); }
 }
 
@@ -456,8 +495,34 @@ async function loadWithdrawals() {
         const container = document.getElementById('withdrawals-list');
         if (!container) return;
         if (!list.length) { container.innerHTML = '<div class="empty-state"><p>Нет выводов</p></div>'; return; }
-        container.innerHTML = list.map(w => `<div class="order-item"><div class="order-header"><span class="order-number">${w.bank || '—'}</span><span class="order-status status-${w.status}">${w.status === 'completed' ? 'Выполнен' : w.status === 'pending' ? 'Ожидает' : 'Отклонён'}</span></div><div class="order-amount">${formatRub(w.amount_rub)}</div><div style="font-size:13px;color:var(--gray-500);">${w.name || '—'} | ${w.phone || '—'}</div><div class="order-date">${formatDate(w.created_at)}</div></div>`).join('');
+        container.innerHTML = list.map(w => {
+            const isPending = w.status === 'pending';
+            const createdTime = new Date(w.created_at).getTime();
+            const canCancel = isPending && (Date.now() - createdTime < 30000);
+            const cancelBtn = canCancel ? `<div class="order-actions"><button class="btn btn-danger btn-small" onclick="cancelWithdrawal(${w.id})">❌ Отменить (30с)</button><div class="order-timer" id="wd-timer-${w.id}"></div></div>` : '';
+            return `<div class="order-item"><div class="order-header"><span class="order-number">${w.bank || '—'}</span><span class="order-status status-${w.status}">${w.status === 'completed' ? 'Выполнен' : w.status === 'pending' ? 'Ожидает' : 'Отклонён'}</span></div><div class="order-amount">${formatRub(w.amount_rub)}</div><div style="font-size:13px;color:var(--gray-500);">${w.name || '—'} | ${w.phone || '—'}</div>${cancelBtn}<div class="order-date">${formatDate(w.created_at)}</div></div>`;
+        }).join('');
+        // Start cancel timers
+        list.forEach(w => {
+            if (w.status === 'pending') {
+                const createdTime = new Date(w.created_at).getTime();
+                const remaining = 30000 - (Date.now() - createdTime);
+                if (remaining > 0) startWithdrawalTimer(w.id, createdTime);
+            }
+        });
     } catch (e) {}
+}
+
+function startWithdrawalTimer(id, createdTime) {
+    const timerEl = document.getElementById(`wd-timer-${id}`);
+    if (!timerEl) return;
+    if (withdrawalTimers[id]) clearInterval(withdrawalTimers[id]);
+    withdrawalTimers[id] = setInterval(() => {
+        const remaining = 30000 - (Date.now() - createdTime);
+        if (remaining <= 0) { timerEl.textContent = '⏰ Время на отмену вышло'; clearInterval(withdrawalTimers[id]); loadWithdrawals(); return; }
+        const secs = Math.ceil(remaining / 1000);
+        timerEl.textContent = `⏱ Отмена через: ${secs}с`;
+    }, 1000);
 }
 
 // ==================== REQUISITES ====================
@@ -539,6 +604,122 @@ async function disable2FA() {
     const data = await res.json();
     if (data.success) { showToast('2FA отключена', 'success'); currentUser.totp_enabled = false; updateUserUI(); }
     else showToast(data.error, 'error');
+}
+
+// ==================== SSE (REAL-TIME) ====================
+function connectSSE() {
+    if (eventSource) { eventSource.close(); eventSource = null; }
+    eventSource = new EventSource('/api/user/events');
+    
+    eventSource.addEventListener('balance_update', (e) => {
+        const data = JSON.parse(e.data);
+        if (data.balance_rub !== undefined) currentUser.balance_rub = data.balance_rub;
+        if (data.held_rub !== undefined) currentUser.held_rub = data.held_rub;
+        if (data.withdrawal_pending !== undefined) currentUser.withdrawal_pending = data.withdrawal_pending;
+        updateUserUI();
+    });
+    
+    eventSource.addEventListener('new_order', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`📦 Новый ордер ${data.order_number} на ${formatRub(data.amount_rub)}`, 'info');
+        loadOrders();
+        loadStats();
+    });
+    
+    eventSource.addEventListener('new_appeal', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`⚠️ Новая апелляция ${data.appeal_number}`, 'info');
+        loadAppeals();
+    });
+    
+    eventSource.addEventListener('appeal_resolved', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`✅ Апелляция ${data.appeal_number} решена. Списано ${formatRub(data.amount)}`, 'success');
+        loadAppeals();
+        loadStats();
+    });
+    
+    eventSource.addEventListener('appeal_rejected', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`❌ Апелляция ${data.appeal_number} отклонена. Средства разморожены.`, 'error');
+        loadAppeals();
+    });
+    
+    eventSource.addEventListener('deposit_confirmed', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`✅ Депозит ${data.amount_usdt} USDT подтверждён! +${formatRub(data.amount_rub)}`, 'success');
+        loadDeposits();
+        loadStats();
+    });
+    
+    eventSource.addEventListener('deposit_rejected', (e) => {
+        showToast('❌ Депозит отклонён', 'error');
+        loadDeposits();
+    });
+    
+    eventSource.addEventListener('withdrawal_confirmed', (e) => {
+        showToast('✅ Вывод подтверждён!', 'success');
+        loadWithdrawals();
+    });
+    
+    eventSource.addEventListener('withdrawal_rejected', (e) => {
+        showToast('❌ Вывод отклонён', 'error');
+        loadWithdrawals();
+    });
+    
+    eventSource.addEventListener('new_notification', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(data.message, data.type === 'error' ? 'error' : 'info');
+        loadNotifications();
+    });
+    
+    eventSource.addEventListener('verification_approved', () => {
+        showToast('✅ Верификация пройдена!', 'success');
+        currentUser.is_verified = true;
+        currentUser.verification_status = 'approved';
+        refreshUserProfile();
+    });
+    
+    eventSource.addEventListener('verification_rejected', (e) => {
+        const data = JSON.parse(e.data);
+        showToast(`❌ Верификация отклонена: ${data.comment || ''}`, 'error');
+        currentUser.verification_status = 'rejected';
+        refreshUserProfile();
+    });
+    
+    eventSource.addEventListener('order_completed', () => {
+        loadOrders();
+        loadStats();
+    });
+    
+    eventSource.addEventListener('order_failed', () => {
+        loadOrders();
+    });
+    
+    eventSource.onerror = () => {
+        // Reconnect after 3 seconds
+        setTimeout(connectSSE, 3000);
+    };
+}
+
+// ==================== AUTO REFRESH ====================
+function startAutoRefresh() {
+    if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+    autoRefreshInterval = setInterval(() => {
+        refreshUserProfile();
+        loadOrders();
+        loadWithdrawals();
+    }, 10000); // Every 10 seconds
+}
+
+async function refreshUserProfile() {
+    try {
+        const res = await fetch('/api/user/profile');
+        if (res.ok) {
+            currentUser = await res.json();
+            updateUserUI();
+        }
+    } catch (e) {}
 }
 
 // ==================== UTILS ====================
