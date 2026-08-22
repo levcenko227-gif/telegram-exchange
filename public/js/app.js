@@ -547,16 +547,29 @@ async function loadRequisites() {
         if (container) {
             if (!list.length) container.innerHTML = '<p style="color:var(--gray-400);font-size:14px;">Нет реквизитов</p>';
             else {
-                container.innerHTML = list.map(r => `<div style="padding:12px;background:${r.is_active ? '#d1fae5' : 'var(--gray-50)'};border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid ${r.is_active ? '#86efac' : 'var(--gray-200)'};"><div><div style="font-weight:600;">${r.bank}</div><div style="font-size:13px;color:var(--gray-500);">${r.name} | ${r.phone}</div>${r.is_active ? '<span style="font-size:11px;color:#065f46;font-weight:600;">🟢 Активен</span>' : ''}</div><div style="display:flex;gap:8px;">${r.is_active ? `<button class="btn btn-small btn-danger" onclick="deactivateReq(${r.id})">Выключить</button>` : `<button class="btn btn-small btn-success" onclick="activateReq(${r.id})">Включить</button>`}<button class="btn btn-small" onclick="deleteReq(${r.id})">✕</button></div></div>`).join('');
+                container.innerHTML = list.map(r => `<div style="padding:12px;background:${r.is_active ? '#d1fae5' : 'var(--gray-50)'};border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid ${r.is_active ? '#86efac' : 'var(--gray-200)'};"><div><div style="font-weight:600;">${r.bank}</div><div style="font-size:13px;color:var(--gray-500);">${r.name} | ${r.phone}</div>${r.is_active ? '<span style="font-size:11px;color:#065f46;font-weight:600;">🟢 Активен</span>' : ''}</div><div style="display:flex;gap:8px;">${r.is_active ? `<button class="btn btn-small btn-danger" onclick="deactivateReq(${r.id})">Выключить</button>` : `<button class="btn btn-small btn-success" onclick="activateReq(${r.id})">Включить</button>`}<button class="btn btn-small" onclick="archiveReq(${r.id})">📦</button></div></div>`).join('');
             }
         }
         if (select) select.innerHTML = '<option value="">Выберите реквизит</option>' + list.map(r => `<option value="${r.id}">${r.bank} - ${r.name} (${r.phone})</option>`).join('');
+        loadArchivedRequisites();
     } catch (e) {}
 }
 
+async function loadArchivedRequisites() {
+    try {
+        const res = await fetch('/api/requisites?archived=1');
+        const list = await res.json();
+        const container = document.getElementById('archived-requisites-list');
+        if (!container) return;
+        if (!list.length) { container.innerHTML = '<p style="color:var(--gray-400);font-size:13px;">Архив пуст</p>'; return; }
+        container.innerHTML = list.map(r => `<div style="padding:10px;background:var(--gray-100);border-radius:8px;margin:4px 0;font-size:13px;display:flex;justify-content:space-between;align-items:center;"><div><strong>${r.bank}</strong> - ${r.name} | ${r.phone}</div><button class="btn btn-small btn-success" onclick="restoreReq(${r.id})">Вернуть</button></div>`).join('');
+    } catch (e) {}
+}
+
+async function archiveReq(id) { await fetch(`/api/requisites/${id}/archive`, { method: 'POST' }); showToast('В архив', 'success'); loadRequisites(); }
+async function restoreReq(id) { await fetch(`/api/requisites/${id}/restore`, { method: 'POST' }); showToast('Восстановлен', 'success'); loadRequisites(); }
 async function activateReq(id) { await fetch(`/api/requisites/${id}/activate`, { method: 'POST' }); showToast('Активирован!', 'success'); loadRequisites(); }
 async function deactivateReq(id) { await fetch(`/api/requisites/${id}/deactivate`, { method: 'POST' }); showToast('Деактивирован', 'success'); loadRequisites(); }
-async function deleteReq(id) { await fetch(`/api/requisites/${id}/delete`, { method: 'POST' }); loadRequisites(); }
 
 // ==================== NOTIFICATIONS ====================
 async function loadNotifications() {
