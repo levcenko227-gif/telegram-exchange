@@ -376,6 +376,8 @@ function startOrderTimer(order) {
 }
 
 async function completeOrder(id) {
+    if (!confirm('Подтвердить поступление средств?')) return;
+    if (!confirm('Вы уверены? Это действие нельзя отменить.')) return;
     const res = await fetch(`/api/orders/${id}/complete`, { method: 'POST' });
     const data = await res.json();
     if (data.success) { showToast('Ордер выполнен!', 'success'); loadOrders(); loadStats(); } else showToast(data.error, 'error');
@@ -393,10 +395,48 @@ async function loadAppeals() {
         const res = await fetch('/api/appeals');
         const appeals = await res.json();
         const container = document.getElementById('appeals-list');
+        const homeContainer = document.getElementById('active-appeals-list');
+        const activeAppeals = appeals.filter(a => a.status === 'pending');
+        if (homeContainer) {
+            if (!activeAppeals.length) homeContainer.innerHTML = '<div class="empty-state"><p>Нет активных апелляций</p></div>';
+            else homeContainer.innerHTML = activeAppeals.map(a => renderAppeal(a)).join('');
+        }
         if (!container) return;
         if (!appeals.length) { container.innerHTML = '<div class="empty-state"><p>Нет апелляций</p></div>'; return; }
-        container.innerHTML = appeals.map(a => `<div class="order-item"><div class="order-header"><span class="order-number">${a.appeal_number}</span><span class="order-status status-${a.status}">${appealStText(a.status)}</span></div><div class="order-amount">${formatRub(a.amount_rub)}</div>${a.order_number ? `<div style="font-size:13px;color:var(--gray-500);">Ордер: ${a.order_number}</div>` : ''}${a.description ? `<div style="font-size:13px;color:var(--gray-600);margin-top:8px;">${a.description}</div>` : ''}<div class="order-date">${formatDate(a.created_at)}</div></div>`).join('');
+        container.innerHTML = appeals.map(a => renderAppeal(a)).join('');
     } catch (e) {}
+}
+
+function renderAppeal(a) {
+    const reqHtml = a.req_bank ? `<div style="font-size:13px;color:var(--gray-600);margin-top:8px;padding:8px;background:var(--gray-100);border-radius:8px;"><strong>🏦 ${a.req_bank}</strong><br>👤 ${a.req_name}<br>📞 ${a.req_phone}</div>` : '';
+    const receiptHtml = a.receipt_url ? `<div style="margin-top:8px;"><img src="${a.receipt_url}" style="max-width:100%;max-height:200px;border-radius:8px;cursor:pointer;" onclick="window.open(this.src)" alt="Чек"></div>` : '';
+    let actionHtml = '';
+    if (a.status === 'pending' && !a.client_action) {
+        actionHtml = `<div style="margin-top:12px;"><div class="form-group"><label>Выписка из банка (обязательно)</label><input type="file" id="appeal-statement-${a.id}" accept="image/*"></div><div style="display:flex;gap:8px;"><button class="btn btn-success btn-small" onclick="acceptAppeal(${a.id})">Подтвердить</button><button class="btn btn-danger btn-small" onclick="rejectAppeal(${a.id})">Отклонить</button></div></div>`;
+    } else if (a.client_action) {
+        actionHtml = `<div style="margin-top:8px;font-size:13px;color:var(--gray-500);">Ваш ответ: <strong>${a.client_action === 'accepted' ? 'Подтверждено' : 'Отклонено'}</strong></div>`;
+    }
+    return `<div class="order-item"><div class="order-header"><span class="order-number">${a.appeal_number}</span><span class="order-status status-${a.status}">${appealStText(a.status)}</span></div><div class="order-amount">${formatRub(a.amount_rub)}</div>${a.order_number ? `<div style="font-size:13px;color:var(--gray-500);">Ордер: ${a.order_number}</div>` : ''}${reqHtml}${receiptHtml}${a.description ? `<div style="font-size:13px;color:var(--gray-600);margin-top:8px;">${a.description}</div>` : ''}${actionHtml}<div class="order-date">${formatDate(a.created_at)}</div></div>`;
+}
+
+async function acceptAppeal(id) {
+    const fileInput = document.getElementById(`appeal-statement-${id}`);
+    if (!fileInput?.files[0]) return showToast('Прикрепите выписку из банка', 'error');
+    const base64 = await fileToBase64(fileInput.files[0]);
+    if (!confirm('Подтвердить апелляцию?')) return;
+    const res = await fetch(`/api/appeals/${id}/accept`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bank_statement_url: base64 }) });
+    const data = await res.json();
+    if (data.success) { showToast('Выписка отправлена', 'success'); loadAppeals(); } else showToast(data.error, 'error');
+}
+
+async function rejectAppeal(id) {
+    const fileInput = document.getElementById(`appeal-statement-${id}`);
+    if (!fileInput?.files[0]) return showToast('Прикрепите выписку из банка', 'error');
+    const base64 = await fileToBase64(fileInput.files[0]);
+    if (!confirm('Отклонить апелляцию?')) return;
+    const res = await fetch(`/api/appeals/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bank_statement_url: base64 }) });
+    const data = await res.json();
+    if (data.success) { showToast('Выписка отправлена', 'success'); loadAppeals(); } else showToast(data.error, 'error');
 }
 
 function appealStText(s) { return { pending: 'На рассмотрении', resolved: 'Решена', rejected: 'Отклонена' }[s] || s; }
