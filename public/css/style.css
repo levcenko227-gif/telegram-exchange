@@ -726,6 +726,10 @@ body {
     color: var(--gray-400); 
 }
 
+.order-requisite {
+    margin-bottom: 8px;
+}
+
 /* ==================== NOTIFICATIONS ==================== */
 .notification-item { 
     padding: 12px; 
