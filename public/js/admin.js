@@ -277,11 +277,30 @@ async function loadOrders() {
 
 function showCreateOrderModal() { 
     openModal('create-order-modal'); 
-    loadUsersForSelect().then(() => {
-        const userSelect = document.getElementById('order-user');
-        userSelect.addEventListener('change', updateOrderAvailableBalance);
-        updateOrderAvailableBalance();
-    }); 
+    loadUsersWithWithdrawals();
+}
+
+async function loadUsersWithWithdrawals() {
+    try {
+        const res = await fetch('/api/admin/users/with-pending-withdrawals');
+        const users = await res.json();
+        const select = document.getElementById('order-user');
+        const info = document.getElementById('order-available-info');
+        if (!users.length) {
+            select.innerHTML = '<option value="">Нет пользователей с заявками на вывод</option>';
+            if (info) info.textContent = 'Нет подходящих пользователей';
+            return;
+        }
+        select.innerHTML = '<option value="">Выберите пользователя</option>' + users.map(u => `<option value="${u.id}">${u.internal_id} ${u.username} (Вывод: ${fmtRub(u.pending_withdrawal_amount)})</option>`).join('');
+        select.onchange = () => {
+            const uid = select.value;
+            const user = users.find(u => u.id == uid);
+            if (user && info) {
+                const available = (user.balance_rub || 0) - (user.held_rub || 0);
+                info.innerHTML = `Баланс: ${fmtRub(user.balance_rub)} | Заявка на вывод: ${fmtRub(user.pending_withdrawal_amount)} | Доступно: ${fmtRub(available)}`;
+            } else if (info) info.textContent = '';
+        };
+    } catch (e) {}
 }
 
 function updateOrderAvailableBalance() {
@@ -330,7 +349,13 @@ async function loadAppeals() {
         const appeals = await res.json();
         const tbody = document.getElementById('appeals-body');
         if (!appeals.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = appeals.map(a => `<tr><td>${a.appeal_number}</td><td>${a.internal_id || ''} ${a.username}</td><td>${a.order_number || '—'}</td><td>${fmtRub(a.amount_rub)}</td><td><span class="badge badge-${a.status === 'pending' ? 'pending' : a.status === 'resolved' ? 'confirmed' : 'rejected'}">${appealStText(a.status)}</span></td><td>${a.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="resolveAppeal(${a.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectAppeal(${a.id})">✕</button>` : ''}</td></tr>`).join('');
+        tbody.innerHTML = appeals.map(a => {
+            let extra = '';
+            if (a.receipt_url) extra += `<br><img src="${a.receipt_url}" style="max-width:80px;max-height:60px;border-radius:4px;cursor:pointer;" onclick="window.open(this.src)">`;
+            if (a.client_action) extra += `<br><span style="font-size:11px;color:${a.client_action === 'accepted' ? '#10b981' : '#ef4444'};">Клиент: ${a.client_action === 'accepted' ? 'Подтвердил' : 'Отклонил'}</span>`;
+            if (a.bank_statement_url) extra += `<br><a href="${a.bank_statement_url}" target="_blank" style="font-size:11px;">📄 Выписка клиента</a>`;
+            return `<tr><td>${a.appeal_number}</td><td>${a.internal_id || ''} ${a.username}</td><td>${a.order_number || '—'}</td><td>${fmtRub(a.amount_rub)}${extra}</td><td><span class="badge badge-${a.status === 'pending' ? 'pending' : a.status === 'resolved' ? 'confirmed' : 'rejected'}">${appealStText(a.status)}</span></td><td>${a.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="resolveAppeal(${a.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectAppeal(${a.id})">✕</button>` : ''}</td></tr>`;
+        }).join('');
     } catch (e) {}
 }
 
@@ -341,11 +366,23 @@ async function createAppeal() {
     const internalId = document.getElementById('appeal-internal-id').value;
     const amount = document.getElementById('appeal-amount').value;
     if ((!userId && !internalId) || !amount) return notify('Выберите пользователя или введите ID', 'error');
-    const body = { appeal_number: document.getElementById('appeal-number').value || undefined, order_number: document.getElementById('appeal-order').value, amount_rub: parseFloat(amount), description: document.getElementById('appeal-description').value };
+    let receiptUrl = '';
+    const receiptFile = document.getElementById('appeal-receipt')?.files[0];
+    if (receiptFile) receiptUrl = await fileToBase64(receiptFile);
+    const body = { appeal_number: document.getElementById('appeal-number').value || undefined, order_number: document.getElementById('appeal-order').value, amount_rub: parseFloat(amount), description: document.getElementById('appeal-description').value, receipt_url: receiptUrl };
     if (userId) body.user_id = userId; else body.internal_id = internalId;
     const res = await fetch('/api/admin/appeals/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await res.json();
     if (data.success) { notify(`Апелляция ${data.appeal_number} создана!`, 'success'); closeModal('create-appeal-modal'); loadAppeals(); loadDashboard(); } else notify(data.error, 'error');
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 }
 
 async function resolveAppeal(id) { await fetch(`/api/admin/appeals/${id}/resolve`, { method: 'POST' }); notify('Решена', 'success'); loadAppeals(); loadDashboard(); }
