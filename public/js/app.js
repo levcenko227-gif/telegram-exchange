@@ -18,11 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-withdraw').addEventListener('click', createWithdrawal);
     document.getElementById('btn-save-req').addEventListener('click', saveRequisite);
     document.getElementById('btn-mark-read').addEventListener('click', markNotificationsRead);
-    document.getElementById('btn-change-login').addEventListener('click', changeUsername);
     document.getElementById('btn-change-pass').addEventListener('click', changePassword);
     document.getElementById('btn-2fa').addEventListener('click', setup2FA);
     document.getElementById('btn-verify-2fa').addEventListener('click', verify2FA);
-    document.getElementById('btn-submit-verification').addEventListener('click', submitVerification);
+    document.getElementById('btn-setup-submit-verification').addEventListener('click', setupSubmitVerification);
+    document.getElementById('btn-setup-change-password').addEventListener('click', setupChangePassword);
+    document.getElementById('btn-setup-verify-2fa').addEventListener('click', setupVerify2FA);
     document.getElementById('filter-orders')?.addEventListener('change', loadOrders);
     checkSession();
 });
@@ -56,10 +57,9 @@ function showApp() {
     
     const needsVerification = !currentUser.is_verified;
     const needsPasswordChange = !currentUser.password_changed;
-    const needsUsernameChange = !currentUser.username_changed;
     const needs2FA = !currentUser.totp_enabled;
     
-    if (needsVerification || needsPasswordChange || needsUsernameChange || needs2FA) {
+    if (needsVerification || needsPasswordChange || needs2FA) {
         showSetupWizard();
     } else {
         showDashboard();
@@ -69,101 +69,9 @@ function showApp() {
 function showSetupWizard() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-    
-    let setupPage = document.getElementById('page-setup');
-    if (!setupPage) {
-        setupPage = document.createElement('div');
-        setupPage.id = 'page-setup';
-        setupPage.className = 'page active';
-        setupPage.innerHTML = `
-            <div class="card">
-                <h2 class="card-title">🎉 Добро пожаловать в CryptoSwaap!</h2>
-                <p style="color:var(--gray-600);margin-bottom:20px;">Для начала работы выполните следующие шаги:</p>
-                
-                <div id="setup-steps">
-                    <div class="setup-step" id="step-verification" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <strong>📋 Шаг 1: Верификация</strong>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Пройдите верификацию личности</p>
-                            </div>
-                            <span id="step-verification-status">⏳</span>
-                        </div>
-                        <div id="step-verification-form" style="margin-top:16px;">
-                            <div class="form-group"><label>Селфи с паспортом (URL)</label><input type="text" id="setup-v-selfie" placeholder="Ссылка на фото"></div>
-                            <div class="form-group"><label>Фото паспорта (URL)</label><input type="text" id="setup-v-passport" placeholder="Ссылка на фото"></div>
-                            <div class="form-group"><label>Фото регистрации (URL)</label><input type="text" id="setup-v-registration" placeholder="Ссылка на фото"></div>
-                            <div class="form-group"><label>Телефон</label><input type="tel" id="setup-v-phone" placeholder="+7 (999) 123-45-67"></div>
-                            <div class="form-group"><label>Telegram</label><input type="text" id="setup-v-telegram" placeholder="@username"></div>
-                            <div class="form-group"><label>Соцсети</label><input type="text" id="setup-v-social" placeholder="Ссылки через запятую"></div>
-                            <button class="btn btn-primary btn-full" id="btn-setup-submit-verification">Отправить на проверку</button>
-                        </div>
-                        <div id="step-verification-pending" style="display:none;padding:16px;background:#fef3c7;border-radius:8px;color:#92400e;font-weight:600;text-align:center;">
-                            ⏳ Заявка на рассмотрении. Ожидайте подтверждения администратора.
-                        </div>
-                    </div>
-                    
-                    <div class="setup-step" id="step-password" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <strong>🔑 Шаг 2: Смена пароля</strong>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно смените пароль</p>
-                            </div>
-                            <span id="step-password-status">🔒</span>
-                        </div>
-                        <div id="step-password-form" style="margin-top:16px;">
-                            <div class="form-group"><label>Текущий пароль</label><input type="password" id="setup-current-pass" placeholder="Пароль от админа"></div>
-                            <div class="form-group"><label>Новый пароль</label><input type="password" id="setup-new-pass" placeholder="Придумайте новый пароль"></div>
-                            <button class="btn btn-primary btn-full" id="btn-setup-change-password">Сменить пароль</button>
-                        </div>
-                    </div>
-                    
-                    <div class="setup-step" id="step-username" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <strong>👤 Шаг 3: Смена логина</strong>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно смените логин</p>
-                            </div>
-                            <span id="step-username-status">🔒</span>
-                        </div>
-                        <div id="step-username-form" style="margin-top:16px;">
-                            <div class="form-group"><label>Новый логин</label><input type="text" id="setup-new-username" placeholder="Придумайте новый логин"></div>
-                            <button class="btn btn-primary btn-full" id="btn-setup-change-username">Сменить логин</button>
-                        </div>
-                    </div>
-                    
-                    <div class="setup-step" id="step-2fa" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <div>
-                                <strong>🔐 Шаг 4: Двухфакторная аутентификация</strong>
-                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно подключите 2FA</p>
-                            </div>
-                            <span id="step-2fa-status">🔒</span>
-                        </div>
-                        <div id="step-2fa-form" style="margin-top:16px;">
-                            <div class="qr-container"><img id="setup-qr-code" src="" alt="QR"></div>
-                            <div class="secret-key"><label>Ключ:</label><code id="setup-secret-key">--</code></div>
-                            <div class="form-group"><input type="text" id="setup-totp-code" placeholder="Код из приложения" maxlength="6"></div>
-                            <button class="btn btn-primary btn-full" id="btn-setup-verify-2fa">Подключить 2FA</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="setup-complete" style="display:none;padding:20px;background:#d1fae5;border-radius:12px;text-align:center;">
-                    <h3 style="color:#065f46;margin-bottom:8px;">✅ Всё готово!</h3>
-                    <p style="color:#065f46;">Теперь вы можете полноценно пользоваться сервисом</p>
-                    <button class="btn btn-primary" style="margin-top:16px;" onclick="showDashboard()">Перейти в кабинет</button>
-                </div>
-            </div>
-        `;
-        document.querySelector('.content').appendChild(setupPage);
-        
-        document.getElementById('btn-setup-submit-verification').addEventListener('click', setupSubmitVerification);
-        document.getElementById('btn-setup-change-password').addEventListener('click', setupChangePassword);
-        document.getElementById('btn-setup-change-username').addEventListener('click', setupChangeUsername);
-        document.getElementById('btn-setup-verify-2fa').addEventListener('click', setupVerify2FA);
-    }
-    
+    document.getElementById('page-setup').style.display = 'block';
+    document.getElementById('page-setup').classList.add('active');
+    document.getElementById('page-title').textContent = 'Настройка аккаунта';
     updateSetupSteps();
 }
 
@@ -174,50 +82,32 @@ function updateSetupSteps() {
         document.getElementById('step-verification-status').textContent = '✅';
         document.getElementById('step-verification-form').style.display = 'none';
         document.getElementById('step-verification-pending').style.display = 'none';
-        document.getElementById('step-verification').style.opacity = '1';
-        document.getElementById('step-verification').style.pointerEvents = 'auto';
+        document.getElementById('step-verification').classList.add('completed');
+        document.getElementById('step-verification').classList.remove('locked');
     } else if (currentUser.verification_status === 'pending') {
         document.getElementById('step-verification-status').textContent = '⏳';
         document.getElementById('step-verification-form').style.display = 'none';
         document.getElementById('step-verification-pending').style.display = 'block';
-        document.getElementById('step-verification').style.opacity = '1';
-        document.getElementById('step-verification').style.pointerEvents = 'auto';
+        document.getElementById('step-verification').classList.remove('locked');
         allComplete = false;
     } else {
         document.getElementById('step-verification-status').textContent = '❌';
         document.getElementById('step-verification-form').style.display = 'block';
         document.getElementById('step-verification-pending').style.display = 'none';
-        document.getElementById('step-verification').style.opacity = '1';
-        document.getElementById('step-verification').style.pointerEvents = 'auto';
+        document.getElementById('step-verification').classList.remove('locked');
         allComplete = false;
     }
     
     if (currentUser.password_changed) {
         document.getElementById('step-password-status').textContent = '✅';
         document.getElementById('step-password-form').style.display = 'none';
-        document.getElementById('step-password').style.opacity = '1';
-        document.getElementById('step-password').style.pointerEvents = 'auto';
+        document.getElementById('step-password').classList.add('completed');
+        document.getElementById('step-password').classList.remove('locked');
     } else {
         document.getElementById('step-password-status').textContent = '❌';
         document.getElementById('step-password-form').style.display = 'block';
         if (currentUser.is_verified) {
-            document.getElementById('step-password').style.opacity = '1';
-            document.getElementById('step-password').style.pointerEvents = 'auto';
-        }
-        allComplete = false;
-    }
-    
-    if (currentUser.username_changed) {
-        document.getElementById('step-username-status').textContent = '✅';
-        document.getElementById('step-username-form').style.display = 'none';
-        document.getElementById('step-username').style.opacity = '1';
-        document.getElementById('step-username').style.pointerEvents = 'auto';
-    } else {
-        document.getElementById('step-username-status').textContent = '❌';
-        document.getElementById('step-username-form').style.display = 'block';
-        if (currentUser.password_changed) {
-            document.getElementById('step-username').style.opacity = '1';
-            document.getElementById('step-username').style.pointerEvents = 'auto';
+            document.getElementById('step-password').classList.remove('locked');
         }
         allComplete = false;
     }
@@ -225,14 +115,13 @@ function updateSetupSteps() {
     if (currentUser.totp_enabled) {
         document.getElementById('step-2fa-status').textContent = '✅';
         document.getElementById('step-2fa-form').style.display = 'none';
-        document.getElementById('step-2fa').style.opacity = '1';
-        document.getElementById('step-2fa').style.pointerEvents = 'auto';
+        document.getElementById('step-2fa').classList.add('completed');
+        document.getElementById('step-2fa').classList.remove('locked');
     } else {
         document.getElementById('step-2fa-status').textContent = '❌';
         document.getElementById('step-2fa-form').style.display = 'block';
-        if (currentUser.username_changed) {
-            document.getElementById('step-2fa').style.opacity = '1';
-            document.getElementById('step-2fa').style.pointerEvents = 'auto';
+        if (currentUser.password_changed) {
+            document.getElementById('step-2fa').classList.remove('locked');
             loadSetup2FA();
         }
         allComplete = false;
@@ -244,18 +133,31 @@ function updateSetupSteps() {
 }
 
 async function setupSubmitVerification() {
-    const selfie = document.getElementById('setup-v-selfie').value;
-    const passport = document.getElementById('setup-v-passport').value;
-    const registration = document.getElementById('setup-v-registration').value;
+    const selfieFile = document.getElementById('setup-v-selfie').files[0];
+    const passportFile = document.getElementById('setup-v-passport').files[0];
+    const registrationFile = document.getElementById('setup-v-registration').files[0];
     const phone = document.getElementById('setup-v-phone').value;
     const telegram = document.getElementById('setup-v-telegram').value;
     const social = document.getElementById('setup-v-social').value;
-    if (!selfie || !passport || !phone) return showToast('Заполните обязательные поля', 'error');
+    
+    if (!selfieFile || !passportFile || !phone) return showToast('Загрузите фото и укажите телефон', 'error');
+    
+    const selfieBase64 = await fileToBase64(selfieFile);
+    const passportBase64 = await fileToBase64(passportFile);
+    const registrationBase64 = registrationFile ? await fileToBase64(registrationFile) : '';
+    
     try {
         const res = await fetch('/api/verification/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ selfie_url: selfie, passport_photo_url: passport, passport_registration_url: registration, phone, telegram_link: telegram, social_links: social })
+            body: JSON.stringify({ 
+                selfie_url: selfieBase64, 
+                passport_photo_url: passportBase64, 
+                passport_registration_url: registrationBase64, 
+                phone, 
+                telegram_link: telegram, 
+                social_links: social 
+            })
         });
         const data = await res.json();
         if (data.success) {
@@ -264,6 +166,15 @@ async function setupSubmitVerification() {
             updateSetupSteps();
         } else showToast(data.error, 'error');
     } catch (e) { showToast('Ошибка', 'error'); }
+}
+
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 }
 
 async function setupChangePassword() {
@@ -276,19 +187,6 @@ async function setupChangePassword() {
     if (data.success) {
         showToast('Пароль изменён!', 'success');
         currentUser.password_changed = true;
-        updateSetupSteps();
-    } else showToast(data.error, 'error');
-}
-
-async function setupChangeUsername() {
-    const newLogin = document.getElementById('setup-new-username').value;
-    if (!newLogin || newLogin.length < 3) return showToast('Логин минимум 3 символа', 'error');
-    const res = await fetch('/api/user/change-username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_username: newLogin }) });
-    const data = await res.json();
-    if (data.success) {
-        showToast('Логин изменён!', 'success');
-        currentUser.username = newLogin;
-        currentUser.username_changed = true;
         updateSetupSteps();
     } else showToast(data.error, 'error');
 }
@@ -317,6 +215,8 @@ async function setupVerify2FA() {
 }
 
 function showDashboard() {
+    document.getElementById('page-setup').style.display = 'none';
+    document.getElementById('page-home').classList.add('active');
     updateUserUI();
     loadRate();
     loadStats();
@@ -331,7 +231,8 @@ function showDashboard() {
 
 function showPage(page) {
     document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === page));
-    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${page}`));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(`page-${page}`).classList.add('active');
     const titles = { home: 'Главная', orders: 'Ордера', appeals: 'Апелляции', balance: 'Баланс', withdraw: 'Вывод', requisites: 'Реквизиты', notifications: 'Уведомления', profile: 'Профиль' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('sidebar').classList.remove('open');
@@ -607,15 +508,6 @@ async function loadNotifications() {
 async function markNotificationsRead() { await fetch('/api/notifications/read', { method: 'POST' }); loadNotifications(); }
 
 // ==================== PROFILE ====================
-async function changeUsername() {
-    const newLogin = document.getElementById('new-login').value;
-    if (!newLogin || newLogin.length < 3) return showToast('Логин минимум 3 символа', 'error');
-    const res = await fetch('/api/user/change-username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_username: newLogin }) });
-    const data = await res.json();
-    if (data.success) { showToast('Логин изменён!', 'success'); currentUser.username = newLogin; updateUserUI(); document.getElementById('new-login').value = ''; }
-    else showToast(data.error, 'error');
-}
-
 async function changePassword() {
     const curr = document.getElementById('current-pass').value, newP = document.getElementById('new-pass').value;
     if (!curr || !newP) return showToast('Заполните поля', 'error');
