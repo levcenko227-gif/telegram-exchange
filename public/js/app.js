@@ -5,9 +5,6 @@ let orderTimers = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-login').addEventListener('click', handleLogin);
-    document.getElementById('btn-register').addEventListener('click', handleRegister);
-    document.getElementById('link-register').addEventListener('click', (e) => { e.preventDefault(); showRegister(); });
-    document.getElementById('link-login').addEventListener('click', (e) => { e.preventDefault(); showLogin(); });
     document.getElementById('btn-logout').addEventListener('click', doLogout);
     document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', (e) => { e.preventDefault(); showPage(item.dataset.page); }));
     document.getElementById('btn-menu').addEventListener('click', () => document.getElementById('sidebar').classList.toggle('open'));
@@ -17,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-cancel-deposit').addEventListener('click', cancelDeposit);
     document.getElementById('btn-copy').addEventListener('click', copyAddress);
     document.getElementById('amount-usdt').addEventListener('input', calcPreview);
+    document.getElementById('deposit-network').addEventListener('change', updateCoinSuffix);
     document.getElementById('btn-withdraw').addEventListener('click', createWithdrawal);
     document.getElementById('btn-save-req').addEventListener('click', saveRequisite);
     document.getElementById('btn-mark-read').addEventListener('click', markNotificationsRead);
@@ -36,9 +34,6 @@ async function checkSession() {
     } catch (e) {}
 }
 
-function showLogin() { document.getElementById('login-form').style.display = 'block'; document.getElementById('register-form').style.display = 'none'; }
-function showRegister() { document.getElementById('login-form').style.display = 'none'; document.getElementById('register-form').style.display = 'block'; }
-
 async function handleLogin() {
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
@@ -53,53 +48,300 @@ async function handleLogin() {
     } catch (e) { errEl.textContent = 'Ошибка подключения'; errEl.style.display = 'block'; }
 }
 
-async function handleRegister() {
-    const username = document.getElementById('reg-username').value;
-    const password = document.getElementById('reg-password').value;
-    const errEl = document.getElementById('reg-error');
-    if (!username || !password) { errEl.textContent = 'Введите логин и пароль'; errEl.style.display = 'block'; return; }
-    if (username.length < 3) { errEl.textContent = 'Логин минимум 3 символа'; errEl.style.display = 'block'; return; }
-    if (password.length < 6) { errEl.textContent = 'Пароль минимум 6 символов'; errEl.style.display = 'block'; return; }
-    let telegramId = null, firstName = username;
-    if (window.Telegram?.WebApp) { const u = window.Telegram.WebApp.initDataUnsafe?.user; if (u) { telegramId = u.id; firstName = u.first_name || username; } }
-    try {
-        const res = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, telegram_id: telegramId, first_name: firstName }) });
-        const data = await res.json();
-        if (data.success) { currentUser = data.user; showApp(); } else { errEl.textContent = data.error; errEl.style.display = 'block'; }
-    } catch (e) { errEl.textContent = 'Ошибка подключения'; errEl.style.display = 'block'; }
-}
-
 async function doLogout() { await fetch('/api/logout', { method: 'POST' }); currentUser = null; location.reload(); }
 
 function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
+    
+    const needsVerification = !currentUser.is_verified;
+    const needsPasswordChange = !currentUser.password_changed;
+    const needsUsernameChange = !currentUser.username_changed;
+    const needs2FA = !currentUser.totp_enabled;
+    
+    if (needsVerification || needsPasswordChange || needsUsernameChange || needs2FA) {
+        showSetupWizard();
+    } else {
+        showDashboard();
+    }
+}
+
+function showSetupWizard() {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    
+    let setupPage = document.getElementById('page-setup');
+    if (!setupPage) {
+        setupPage = document.createElement('div');
+        setupPage.id = 'page-setup';
+        setupPage.className = 'page active';
+        setupPage.innerHTML = `
+            <div class="card">
+                <h2 class="card-title">🎉 Добро пожаловать в CryptoSwaap!</h2>
+                <p style="color:var(--gray-600);margin-bottom:20px;">Для начала работы выполните следующие шаги:</p>
+                
+                <div id="setup-steps">
+                    <div class="setup-step" id="step-verification" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>📋 Шаг 1: Верификация</strong>
+                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Пройдите верификацию личности</p>
+                            </div>
+                            <span id="step-verification-status">⏳</span>
+                        </div>
+                        <div id="step-verification-form" style="margin-top:16px;">
+                            <div class="form-group"><label>Селфи с паспортом (URL)</label><input type="text" id="setup-v-selfie" placeholder="Ссылка на фото"></div>
+                            <div class="form-group"><label>Фото паспорта (URL)</label><input type="text" id="setup-v-passport" placeholder="Ссылка на фото"></div>
+                            <div class="form-group"><label>Фото регистрации (URL)</label><input type="text" id="setup-v-registration" placeholder="Ссылка на фото"></div>
+                            <div class="form-group"><label>Телефон</label><input type="tel" id="setup-v-phone" placeholder="+7 (999) 123-45-67"></div>
+                            <div class="form-group"><label>Telegram</label><input type="text" id="setup-v-telegram" placeholder="@username"></div>
+                            <div class="form-group"><label>Соцсети</label><input type="text" id="setup-v-social" placeholder="Ссылки через запятую"></div>
+                            <button class="btn btn-primary btn-full" id="btn-setup-submit-verification">Отправить на проверку</button>
+                        </div>
+                        <div id="step-verification-pending" style="display:none;padding:16px;background:#fef3c7;border-radius:8px;color:#92400e;font-weight:600;text-align:center;">
+                            ⏳ Заявка на рассмотрении. Ожидайте подтверждения администратора.
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step" id="step-password" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>🔑 Шаг 2: Смена пароля</strong>
+                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно смените пароль</p>
+                            </div>
+                            <span id="step-password-status">🔒</span>
+                        </div>
+                        <div id="step-password-form" style="margin-top:16px;">
+                            <div class="form-group"><label>Текущий пароль</label><input type="password" id="setup-current-pass" placeholder="Пароль от админа"></div>
+                            <div class="form-group"><label>Новый пароль</label><input type="password" id="setup-new-pass" placeholder="Придумайте новый пароль"></div>
+                            <button class="btn btn-primary btn-full" id="btn-setup-change-password">Сменить пароль</button>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step" id="step-username" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>👤 Шаг 3: Смена логина</strong>
+                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно смените логин</p>
+                            </div>
+                            <span id="step-username-status">🔒</span>
+                        </div>
+                        <div id="step-username-form" style="margin-top:16px;">
+                            <div class="form-group"><label>Новый логин</label><input type="text" id="setup-new-username" placeholder="Придумайте новый логин"></div>
+                            <button class="btn btn-primary btn-full" id="btn-setup-change-username">Сменить логин</button>
+                        </div>
+                    </div>
+                    
+                    <div class="setup-step" id="step-2fa" style="padding:16px;background:var(--gray-50);border-radius:12px;margin-bottom:12px;border:1px solid var(--gray-200);opacity:0.5;pointer-events:none;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>🔐 Шаг 4: Двухфакторная аутентификация</strong>
+                                <p style="font-size:13px;color:var(--gray-500);margin-top:4px;">Обязательно подключите 2FA</p>
+                            </div>
+                            <span id="step-2fa-status">🔒</span>
+                        </div>
+                        <div id="step-2fa-form" style="margin-top:16px;">
+                            <div class="qr-container"><img id="setup-qr-code" src="" alt="QR"></div>
+                            <div class="secret-key"><label>Ключ:</label><code id="setup-secret-key">--</code></div>
+                            <div class="form-group"><input type="text" id="setup-totp-code" placeholder="Код из приложения" maxlength="6"></div>
+                            <button class="btn btn-primary btn-full" id="btn-setup-verify-2fa">Подключить 2FA</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="setup-complete" style="display:none;padding:20px;background:#d1fae5;border-radius:12px;text-align:center;">
+                    <h3 style="color:#065f46;margin-bottom:8px;">✅ Всё готово!</h3>
+                    <p style="color:#065f46;">Теперь вы можете полноценно пользоваться сервисом</p>
+                    <button class="btn btn-primary" style="margin-top:16px;" onclick="showDashboard()">Перейти в кабинет</button>
+                </div>
+            </div>
+        `;
+        document.querySelector('.content').appendChild(setupPage);
+        
+        document.getElementById('btn-setup-submit-verification').addEventListener('click', setupSubmitVerification);
+        document.getElementById('btn-setup-change-password').addEventListener('click', setupChangePassword);
+        document.getElementById('btn-setup-change-username').addEventListener('click', setupChangeUsername);
+        document.getElementById('btn-setup-verify-2fa').addEventListener('click', setupVerify2FA);
+    }
+    
+    updateSetupSteps();
+}
+
+function updateSetupSteps() {
+    let allComplete = true;
+    
+    if (currentUser.is_verified) {
+        document.getElementById('step-verification-status').textContent = '✅';
+        document.getElementById('step-verification-form').style.display = 'none';
+        document.getElementById('step-verification-pending').style.display = 'none';
+        document.getElementById('step-verification').style.opacity = '1';
+        document.getElementById('step-verification').style.pointerEvents = 'auto';
+    } else if (currentUser.verification_status === 'pending') {
+        document.getElementById('step-verification-status').textContent = '⏳';
+        document.getElementById('step-verification-form').style.display = 'none';
+        document.getElementById('step-verification-pending').style.display = 'block';
+        document.getElementById('step-verification').style.opacity = '1';
+        document.getElementById('step-verification').style.pointerEvents = 'auto';
+        allComplete = false;
+    } else {
+        document.getElementById('step-verification-status').textContent = '❌';
+        document.getElementById('step-verification-form').style.display = 'block';
+        document.getElementById('step-verification-pending').style.display = 'none';
+        document.getElementById('step-verification').style.opacity = '1';
+        document.getElementById('step-verification').style.pointerEvents = 'auto';
+        allComplete = false;
+    }
+    
+    if (currentUser.password_changed) {
+        document.getElementById('step-password-status').textContent = '✅';
+        document.getElementById('step-password-form').style.display = 'none';
+        document.getElementById('step-password').style.opacity = '1';
+        document.getElementById('step-password').style.pointerEvents = 'auto';
+    } else {
+        document.getElementById('step-password-status').textContent = '❌';
+        document.getElementById('step-password-form').style.display = 'block';
+        if (currentUser.is_verified) {
+            document.getElementById('step-password').style.opacity = '1';
+            document.getElementById('step-password').style.pointerEvents = 'auto';
+        }
+        allComplete = false;
+    }
+    
+    if (currentUser.username_changed) {
+        document.getElementById('step-username-status').textContent = '✅';
+        document.getElementById('step-username-form').style.display = 'none';
+        document.getElementById('step-username').style.opacity = '1';
+        document.getElementById('step-username').style.pointerEvents = 'auto';
+    } else {
+        document.getElementById('step-username-status').textContent = '❌';
+        document.getElementById('step-username-form').style.display = 'block';
+        if (currentUser.password_changed) {
+            document.getElementById('step-username').style.opacity = '1';
+            document.getElementById('step-username').style.pointerEvents = 'auto';
+        }
+        allComplete = false;
+    }
+    
+    if (currentUser.totp_enabled) {
+        document.getElementById('step-2fa-status').textContent = '✅';
+        document.getElementById('step-2fa-form').style.display = 'none';
+        document.getElementById('step-2fa').style.opacity = '1';
+        document.getElementById('step-2fa').style.pointerEvents = 'auto';
+    } else {
+        document.getElementById('step-2fa-status').textContent = '❌';
+        document.getElementById('step-2fa-form').style.display = 'block';
+        if (currentUser.username_changed) {
+            document.getElementById('step-2fa').style.opacity = '1';
+            document.getElementById('step-2fa').style.pointerEvents = 'auto';
+            loadSetup2FA();
+        }
+        allComplete = false;
+    }
+    
+    if (allComplete) {
+        document.getElementById('setup-complete').style.display = 'block';
+    }
+}
+
+async function setupSubmitVerification() {
+    const selfie = document.getElementById('setup-v-selfie').value;
+    const passport = document.getElementById('setup-v-passport').value;
+    const registration = document.getElementById('setup-v-registration').value;
+    const phone = document.getElementById('setup-v-phone').value;
+    const telegram = document.getElementById('setup-v-telegram').value;
+    const social = document.getElementById('setup-v-social').value;
+    if (!selfie || !passport || !phone) return showToast('Заполните обязательные поля', 'error');
+    try {
+        const res = await fetch('/api/verification/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selfie_url: selfie, passport_photo_url: passport, passport_registration_url: registration, phone, telegram_link: telegram, social_links: social })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('Заявка отправлена!', 'success');
+            currentUser.verification_status = 'pending';
+            updateSetupSteps();
+        } else showToast(data.error, 'error');
+    } catch (e) { showToast('Ошибка', 'error'); }
+}
+
+async function setupChangePassword() {
+    const curr = document.getElementById('setup-current-pass').value;
+    const newP = document.getElementById('setup-new-pass').value;
+    if (!curr || !newP) return showToast('Заполните поля', 'error');
+    if (newP.length < 6) return showToast('Пароль минимум 6 символов', 'error');
+    const res = await fetch('/api/user/change-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current_password: curr, new_password: newP }) });
+    const data = await res.json();
+    if (data.success) {
+        showToast('Пароль изменён!', 'success');
+        currentUser.password_changed = true;
+        updateSetupSteps();
+    } else showToast(data.error, 'error');
+}
+
+async function setupChangeUsername() {
+    const newLogin = document.getElementById('setup-new-username').value;
+    if (!newLogin || newLogin.length < 3) return showToast('Логин минимум 3 символа', 'error');
+    const res = await fetch('/api/user/change-username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_username: newLogin }) });
+    const data = await res.json();
+    if (data.success) {
+        showToast('Логин изменён!', 'success');
+        currentUser.username = newLogin;
+        currentUser.username_changed = true;
+        updateSetupSteps();
+    } else showToast(data.error, 'error');
+}
+
+async function loadSetup2FA() {
+    try {
+        const res = await fetch('/api/2fa/setup', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('setup-qr-code').src = data.qr_code;
+            document.getElementById('setup-secret-key').textContent = data.secret;
+        }
+    } catch (e) {}
+}
+
+async function setupVerify2FA() {
+    const code = document.getElementById('setup-totp-code').value;
+    if (!code || code.length !== 6) return showToast('Введите 6-значный код', 'error');
+    const res = await fetch('/api/2fa/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+    const data = await res.json();
+    if (data.success) {
+        showToast('2FA подключена!', 'success');
+        currentUser.totp_enabled = true;
+        updateSetupSteps();
+    } else showToast(data.error, 'error');
+}
+
+function showDashboard() {
     updateUserUI();
     loadRate();
     loadStats();
     loadOrders();
     loadAppeals();
     loadDeposits();
+    loadWithdrawals();
     loadRequisites();
     loadNotifications();
-    loadVerificationStatus();
     updateOnlineButton();
-    checkVerificationBanner();
 }
 
 function showPage(page) {
     document.querySelectorAll('.nav-item').forEach(i => i.classList.toggle('active', i.dataset.page === page));
     document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === `page-${page}`));
-    const titles = { home: 'Главная', orders: 'Ордера', appeals: 'Апелляции', balance: 'Баланс', requisites: 'Реквизиты', notifications: 'Уведомления', verification: 'Верификация', profile: 'Профиль' };
+    const titles = { home: 'Главная', orders: 'Ордера', appeals: 'Апелляции', balance: 'Баланс', withdraw: 'Вывод', requisites: 'Реквизиты', notifications: 'Уведомления', profile: 'Профиль' };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('sidebar').classList.remove('open');
     if (page === 'home') { loadStats(); loadOrders(); }
     if (page === 'orders') loadOrders();
     if (page === 'appeals') loadAppeals();
     if (page === 'balance') { loadDeposits(); loadRate(); }
+    if (page === 'withdraw') { loadWithdrawals(); loadRequisites(); }
     if (page === 'requisites') loadRequisites();
     if (page === 'notifications') loadNotifications();
-    if (page === 'verification') loadVerificationStatus();
 }
 
 function updateUserUI() {
@@ -107,8 +349,9 @@ function updateUserUI() {
     document.getElementById('user-balance-header').textContent = formatRub(currentUser.balance_rub);
     document.getElementById('welcome-name').textContent = currentUser.username;
     document.getElementById('profile-name').textContent = currentUser.username;
-    document.getElementById('profile-id').textContent = currentUser.first_name || '';
+    document.getElementById('profile-id').textContent = `ID: ${currentUser.internal_id || '—'}`;
     document.getElementById('balance-value').textContent = formatRub(currentUser.balance_rub);
+    document.getElementById('withdraw-balance').textContent = formatRub(currentUser.balance_rub);
     const s = document.getElementById('2fa-status'), b = document.getElementById('btn-2fa');
     if (currentUser.totp_enabled) { s.textContent = 'Подключена ✓'; s.classList.add('active'); b.textContent = 'Отключить'; b.onclick = () => disable2FA(); }
     else { s.textContent = 'Не подключена'; s.classList.remove('active'); b.textContent = 'Настроить'; b.onclick = () => setup2FA(); }
@@ -120,21 +363,10 @@ function updateOnlineButton() {
     else { btn.textContent = '🔴 Офлайн'; btn.className = 'btn-online offline'; }
 }
 
-function checkVerificationBanner() {
-    const banner = document.getElementById('verification-banner');
-    if (currentUser && !currentUser.is_verified && currentUser.verification_status !== 'pending') {
-        banner.style.display = 'flex';
-    } else {
-        banner.style.display = 'none';
-    }
-}
-
 async function toggleOnline() {
-    try {
-        const res = await fetch('/api/user/toggle-online', { method: 'POST' });
-        const data = await res.json();
-        if (data.success) { currentUser.is_online = data.is_online; updateOnlineButton(); showToast(data.is_online ? 'Вы онлайн!' : 'Вы офлайн', 'success'); }
-    } catch (e) {}
+    const res = await fetch('/api/user/toggle-online', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { currentUser.is_online = data.is_online; updateOnlineButton(); showToast(data.is_online ? 'Вы онлайн!' : 'Вы офлайн', 'success'); }
 }
 
 async function loadRate() {
@@ -143,8 +375,16 @@ async function loadRate() {
         const data = await res.json();
         networks = data.networks || [];
         const select = document.getElementById('deposit-network');
-        if (select) select.innerHTML = networks.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+        if (select) select.innerHTML = networks.map(n => `<option value="${n.id}" data-coin="${n.coin || 'USDT'}">${n.name}</option>`).join('');
+        updateCoinSuffix();
     } catch (e) {}
+}
+
+function updateCoinSuffix() {
+    const select = document.getElementById('deposit-network');
+    const option = select?.selectedOptions[0];
+    const coin = option?.dataset?.coin || 'USDT';
+    document.getElementById('coin-suffix').textContent = coin;
 }
 
 async function loadStats() {
@@ -176,13 +416,13 @@ async function loadOrders() {
         const activeOrders = orders.filter(o => o.status === 'active');
         const homeContainer = document.getElementById('active-orders-list');
         if (homeContainer) {
-            if (!activeOrders.length) { homeContainer.innerHTML = '<div class="empty-state"><p>Нет активных ордеров</p></div>'; }
-            else { homeContainer.innerHTML = activeOrders.map(o => renderOrder(o)).join(''); }
+            if (!activeOrders.length) homeContainer.innerHTML = '<div class="empty-state"><p>Нет активных ордеров</p></div>';
+            else homeContainer.innerHTML = activeOrders.map(o => renderOrder(o)).join('');
         }
         const ordersContainer = document.getElementById('orders-list');
         if (ordersContainer) {
-            if (!orders.length) { ordersContainer.innerHTML = '<div class="empty-state"><p>Нет ордеров</p></div>'; }
-            else { ordersContainer.innerHTML = orders.map(o => renderOrder(o)).join(''); }
+            if (!orders.length) ordersContainer.innerHTML = '<div class="empty-state"><p>Нет ордеров</p></div>';
+            else ordersContainer.innerHTML = orders.map(o => renderOrder(o)).join('');
         }
         activeOrders.forEach(o => startOrderTimer(o));
     } catch (e) {}
@@ -253,12 +493,14 @@ function calcPreview() {
 async function createDeposit() {
     const amount = parseFloat(document.getElementById('amount-usdt').value);
     const network = document.getElementById('deposit-network').value;
-    if (!amount || amount < 20) return showToast('Минимум 20 USDT', 'error');
+    const option = document.getElementById('deposit-network').selectedOptions[0];
+    const coin = option?.dataset?.coin || 'USDT';
+    if (!amount || amount < 20) return showToast('Минимум 20', 'error');
     const net = networks.find(n => n.id === network);
     if (!net) return showToast('Выберите сеть', 'error');
-    currentDeposit = { amount_usdt: amount, network, wallet: net.wallet };
+    currentDeposit = { amount_usdt: amount, network, coin, wallet: net.wallet };
     document.getElementById('wallet-address').textContent = net.wallet;
-    document.getElementById('send-amount').textContent = `${amount} USDT`;
+    document.getElementById('send-amount').textContent = `${amount} ${coin}`;
     const data = await (await fetch('/api/exchange/rate')).json();
     document.getElementById('receive-amount').textContent = formatRub(amount * parseFloat(data.final_rate));
     document.getElementById('earn-amount').textContent = `+${formatRub(amount * parseFloat(data.base_rate) * (parseFloat(data.markup_percent) / 100))}`;
@@ -272,7 +514,7 @@ async function confirmDeposit() {
     const txHash = document.getElementById('tx-hash').value;
     if (!txHash || txHash.length < 10) return showToast('Введите хеш транзакции', 'error');
     try {
-        const res = await fetch('/api/deposit/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount_usdt: currentDeposit.amount_usdt, network: currentDeposit.network, tx_hash: txHash }) });
+        const res = await fetch('/api/deposit/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount_usdt: currentDeposit.amount_usdt, network: currentDeposit.network, coin: currentDeposit.coin, tx_hash: txHash }) });
         const data = await res.json();
         if (data.success) { showToast('Заявка отправлена!', 'success'); cancelDeposit(); loadDeposits(); } else showToast(data.error, 'error');
     } catch (e) { showToast('Ошибка', 'error'); }
@@ -286,8 +528,8 @@ async function loadDeposits() {
         const list = await res.json();
         const container = document.getElementById('deposits-list');
         if (!container) return;
-        if (!list.length) { container.innerHTML = '<div class="empty-state"><p>Нет депозитов</p></div>'; return; }
-        container.innerHTML = list.map(d => `<div class="order-item"><div class="order-header"><span class="order-number">${d.network}</span><span class="order-status status-${d.status}">${depStText(d.status)}</span></div><div class="order-amount">${d.amount_usdt} USDT → ${formatRub(d.amount_rub)}</div><div style="font-size:13px;color:var(--gray-500);">Заработок: +${formatRub(d.earned_rub)}</div>${d.tx_hash ? `<div style="font-size:11px;color:var(--gray-400);word-break:break-all;">TX: ${d.tx_hash}</div>` : ''}<div class="order-date">${formatDate(d.created_at)}</div></div>`).join('');
+        if (!list.length) { container.innerHTML = '<div class="empty-state"><p>Нет пополнений</p></div>'; return; }
+        container.innerHTML = list.map(d => `<div class="order-item"><div class="order-header"><span class="order-number">${d.network} (${d.coin || 'USDT'})</span><span class="order-status status-${d.status}">${depStText(d.status)}</span></div><div class="order-amount">${d.amount_usdt} → ${formatRub(d.amount_rub)}</div><div style="font-size:13px;color:var(--gray-500);">Заработок: +${formatRub(d.earned_rub)}</div>${d.tx_hash ? `<div style="font-size:11px;color:var(--gray-400);word-break:break-all;">TX: ${d.tx_hash}</div>` : ''}<div class="order-date">${formatDate(d.created_at)}</div></div>`).join('');
     } catch (e) {}
 }
 
@@ -302,8 +544,19 @@ async function createWithdrawal() {
     try {
         const res = await fetch('/api/withdrawal/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amount_rub: amount, requisite_id: requisiteId }) });
         const data = await res.json();
-        if (data.success) { showToast('Заявка создана!', 'success'); document.getElementById('withdraw-amount').value = ''; loadStats(); updateUserUI(); } else showToast(data.error, 'error');
+        if (data.success) { showToast('Заявка создана!', 'success'); document.getElementById('withdraw-amount').value = ''; loadStats(); updateUserUI(); loadWithdrawals(); } else showToast(data.error, 'error');
     } catch (e) { showToast('Ошибка', 'error'); }
+}
+
+async function loadWithdrawals() {
+    try {
+        const res = await fetch('/api/withdrawals');
+        const list = await res.json();
+        const container = document.getElementById('withdrawals-list');
+        if (!container) return;
+        if (!list.length) { container.innerHTML = '<div class="empty-state"><p>Нет выводов</p></div>'; return; }
+        container.innerHTML = list.map(w => `<div class="order-item"><div class="order-header"><span class="order-number">${w.bank || '—'}</span><span class="order-status status-${w.status}">${w.status === 'completed' ? 'Выполнен' : w.status === 'pending' ? 'Ожидает' : 'Отклонён'}</span></div><div class="order-amount">${formatRub(w.amount_rub)}</div><div style="font-size:13px;color:var(--gray-500);">${w.name || '—'} | ${w.phone || '—'}</div><div class="order-date">${formatDate(w.created_at)}</div></div>`).join('');
+    } catch (e) {}
 }
 
 // ==================== REQUISITES ====================
@@ -326,7 +579,7 @@ async function loadRequisites() {
         const container = document.getElementById('requisites-list');
         const select = document.getElementById('withdraw-requisite');
         if (container) {
-            if (!list.length) { container.innerHTML = '<p style="color:var(--gray-400);font-size:14px;">Нет реквизитов</p>'; }
+            if (!list.length) container.innerHTML = '<p style="color:var(--gray-400);font-size:14px;">Нет реквизитов</p>';
             else {
                 container.innerHTML = list.map(r => `<div style="padding:12px;background:${r.is_active ? '#d1fae5' : 'var(--gray-50)'};border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid ${r.is_active ? '#86efac' : 'var(--gray-200)'};"><div><div style="font-weight:600;">${r.bank}</div><div style="font-size:13px;color:var(--gray-500);">${r.name} | ${r.phone}</div>${r.is_active ? '<span style="font-size:11px;color:#065f46;font-weight:600;">🟢 Активен</span>' : ''}</div><div style="display:flex;gap:8px;">${r.is_active ? `<button class="btn btn-small btn-danger" onclick="deactivateReq(${r.id})">Выключить</button>` : `<button class="btn btn-small btn-success" onclick="activateReq(${r.id})">Включить</button>`}<button class="btn btn-small" onclick="deleteReq(${r.id})">✕</button></div></div>`).join('');
             }
@@ -352,49 +605,6 @@ async function loadNotifications() {
 }
 
 async function markNotificationsRead() { await fetch('/api/notifications/read', { method: 'POST' }); loadNotifications(); }
-
-// ==================== VERIFICATION ====================
-async function loadVerificationStatus() {
-    try {
-        const res = await fetch('/api/verification/status');
-        const data = await res.json();
-        const statusEl = document.getElementById('verification-status');
-        const formEl = document.getElementById('verification-form');
-        if (data.status === 'approved') {
-            statusEl.innerHTML = '<div style="padding:16px;background:#d1fae5;border-radius:12px;color:#065f46;font-weight:600;">✅ Верификация пройдена!</div>';
-            formEl.style.display = 'none';
-        } else if (data.status === 'pending') {
-            statusEl.innerHTML = '<div style="padding:16px;background:#fef3c7;border-radius:12px;color:#92400e;font-weight:600;">⏳ Заявка на рассмотрении</div>';
-            formEl.style.display = 'none';
-        } else if (data.status === 'rejected') {
-            statusEl.innerHTML = `<div style="padding:16px;background:#fee2e2;border-radius:12px;color:#991b1b;font-weight:600;">❌ Отклонено${data.admin_comment ? ': ' + data.admin_comment : ''}</div>`;
-            formEl.style.display = 'block';
-        } else {
-            statusEl.innerHTML = '';
-            formEl.style.display = 'block';
-        }
-    } catch (e) {}
-}
-
-async function submitVerification() {
-    const selfie = document.getElementById('v-selfie').value;
-    const passport = document.getElementById('v-passport').value;
-    const registration = document.getElementById('v-registration').value;
-    const phone = document.getElementById('v-phone').value;
-    const telegram = document.getElementById('v-telegram').value;
-    const social = document.getElementById('v-social').value;
-    if (!selfie || !passport || !phone) return showToast('Заполните обязательные поля', 'error');
-    try {
-        const res = await fetch('/api/verification/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ selfie_url: selfie, passport_photo_url: passport, passport_registration_url: registration, phone, telegram_link: telegram, social_links: social })
-        });
-        const data = await res.json();
-        if (data.success) { showToast('Заявка отправлена!', 'success'); loadVerificationStatus(); checkVerificationBanner(); }
-        else showToast(data.error, 'error');
-    } catch (e) { showToast('Ошибка', 'error'); }
-}
 
 // ==================== PROFILE ====================
 async function changeUsername() {
