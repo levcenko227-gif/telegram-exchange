@@ -2,6 +2,7 @@ let currentPage = 'dashboard';
 let lastCreatedUser = null;
 let allUsers = [];
 let isSuperAdmin = false;
+let adminEventSource = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
@@ -44,6 +45,8 @@ async function handleLogin(e) {
     } catch (e) { errEl.textContent = 'Ошибка'; errEl.style.display = 'block'; }
 }
 
+let adminRefreshInterval = null;
+
 function showDashboard() {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-dashboard').style.display = 'flex';
@@ -52,6 +55,72 @@ function showDashboard() {
         if (adminsLink) adminsLink.style.display = 'none';
     }
     loadDashboard(); loadSettings(); loadAdminProfile(); loadNotifications(); loadUsersForSelect();
+    connectAdminSSE();
+    // Auto-refresh every 15 seconds as backup
+    if (adminRefreshInterval) clearInterval(adminRefreshInterval);
+    adminRefreshInterval = setInterval(() => {
+        if (currentPage === 'dashboard') loadDashboard();
+        if (currentPage === 'users') loadUsers();
+        if (currentPage === 'orders') loadOrders();
+        if (currentPage === 'withdrawals') loadWithdrawals();
+        loadNotifications();
+    }, 15000);
+}
+
+function connectAdminSSE() {
+    if (adminEventSource) { adminEventSource.close(); adminEventSource = null; }
+    adminEventSource = new EventSource('/api/admin/events');
+    
+    adminEventSource.addEventListener('user_status', (e) => {
+        const data = JSON.parse(e.data);
+        if (currentPage === 'users') loadUsers();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.addEventListener('new_deposit', (e) => {
+        const data = JSON.parse(e.data);
+        notify(`💰 Новый депозит от пользователя #${data.userId}`, 'info');
+        if (currentPage === 'deposits') loadDeposits();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.addEventListener('new_withdrawal', (e) => {
+        const data = JSON.parse(e.data);
+        notify(`💸 Новый вывод от пользователя #${data.userId}`, 'info');
+        if (currentPage === 'withdrawals') loadWithdrawals();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.addEventListener('withdrawal_cancelled', (e) => {
+        notify('❌ Вывод отменён пользователем', 'info');
+        if (currentPage === 'withdrawals') loadWithdrawals();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.addEventListener('new_verification', (e) => {
+        notify('📋 Новая заявка на верификацию', 'info');
+        if (currentPage === 'verifications') loadVerifications();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.addEventListener('order_completed', (e) => {
+        const data = JSON.parse(e.data);
+        notify(`✅ Ордер выполнен пользователем #${data.userId}`, 'success');
+        if (currentPage === 'orders') loadOrders();
+        if (currentPage === 'dashboard') loadDashboard();
+        if (currentPage === 'users') loadUsers();
+    });
+    
+    adminEventSource.addEventListener('order_failed', (e) => {
+        const data = JSON.parse(e.data);
+        notify(`❌ Ордер не выполнен пользователем #${data.userId}`, 'error');
+        if (currentPage === 'orders') loadOrders();
+        if (currentPage === 'dashboard') loadDashboard();
+    });
+    
+    adminEventSource.onerror = () => {
+        setTimeout(connectAdminSSE, 3000);
+    };
 }
 
 async function logout() { await fetch('/api/admin/logout', { method: 'POST' }); location.reload(); }
@@ -82,7 +151,7 @@ async function loadUsersForSelect() {
     try {
         const res = await fetch('/api/admin/users');
         allUsers = await res.json();
-        const options = allUsers.map(u => `<option value="${u.id}">${u.username} (${u.first_name || ''})</option>`).join('');
+        const options = allUsers.map(u => `<option value="${u.id}">${u.internal_id || ''} ${u.username} (${u.first_name || ''})</option>`).join('');
         ['order-user', 'appeal-user', 'notif-user'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.innerHTML = (id === 'notif-user' ? '<option value="all">Все пользователи</option>' : '') + options;
@@ -118,7 +187,7 @@ async function loadDashboard() {
         document.getElementById('stat-pending-wd').textContent = data.pending_withdrawals;
         const tbody = document.getElementById('recent-body');
         if (!data.recent_deposits.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = data.recent_deposits.map(d => `<tr><td>#${d.id}</td><td>${d.username}</td><td>${d.amount_usdt}</td><td>${fmtRub(d.amount_rub)}</td><td><span class="badge badge-${d.status}">${stText(d.status)}</span></td><td>${fmtDate(d.created_at)}</td></tr>`).join('');
+        tbody.innerHTML = data.recent_deposits.map(d => `<tr><td>${d.internal_id || '#' + d.id}</td><td>${d.username}</td><td>${d.amount_usdt}</td><td>${fmtRub(d.amount_rub)}</td><td><span class="badge badge-${d.status}">${stText(d.status)}</span></td><td>${fmtDate(d.created_at)}</td></tr>`).join('');
     } catch (e) {}
 }
 
@@ -159,17 +228,18 @@ async function viewVerification(id) {
     const list = await res.json();
     const v = list.find(x => x.id === id);
     if (!v) return;
+    const imgStyle = 'max-width:100%;max-height:300px;border-radius:8px;margin:8px 0;border:1px solid #e5e7eb;cursor:pointer;';
     document.getElementById('verification-modal-body').innerHTML = `
         <h3>Верификация #${v.id}</h3>
-        <p><strong>Пользователь:</strong> ${v.username}</p>
+        <p><strong>Пользователь:</strong> ${v.username} (${v.internal_id || ''})</p>
         <p><strong>Телефон:</strong> ${v.phone}</p>
         <p><strong>Telegram:</strong> ${v.telegram_link || '—'}</p>
         <p><strong>Соцсети:</strong> ${v.social_links || '—'}</p>
         <hr style="margin:16px 0;">
         <h4>Документы:</h4>
-        ${v.selfie_url ? `<p><a href="${v.selfie_url}" target="_blank">📸 Селфи с паспортом</a></p>` : ''}
-        ${v.passport_photo_url ? `<p><a href="${v.passport_photo_url}" target="_blank">📄 Паспорт</a></p>` : ''}
-        ${v.passport_registration_url ? `<p><a href="${v.passport_registration_url}" target="_blank">📄 Регистрация</a></p>` : ''}
+        ${v.selfie_url ? `<div><strong>📸 Селфи с паспортом:</strong><br><img src="${v.selfie_url}" style="${imgStyle}" onclick="window.open(this.src)" alt="Селфи"></div>` : '<p>📸 Селфи: не загружено</p>'}
+        ${v.passport_photo_url ? `<div><strong>📄 Паспорт:</strong><br><img src="${v.passport_photo_url}" style="${imgStyle}" onclick="window.open(this.src)" alt="Паспорт"></div>` : '<p>📄 Паспорт: не загружено</p>'}
+        ${v.passport_registration_url ? `<div><strong>📄 Регистрация:</strong><br><img src="${v.passport_registration_url}" style="${imgStyle}" onclick="window.open(this.src)" alt="Регистрация"></div>` : '<p>📄 Регистрация: не загружено</p>'}
         ${v.admin_comment ? `<p style="color:var(--danger);margin-top:12px;"><strong>Комментарий:</strong> ${v.admin_comment}</p>` : ''}
     `;
     openModal('verification-modal');
@@ -201,11 +271,30 @@ async function loadOrders() {
         const orders = await res.json();
         const tbody = document.getElementById('orders-body');
         if (!orders.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = orders.map(o => `<tr><td>${o.order_number}</td><td>${o.username}</td><td>${fmtRub(o.amount_rub)}</td><td><span class="badge badge-${o.status === 'active' ? 'pending' : o.status === 'completed' ? 'confirmed' : 'rejected'}">${orderStText(o.status)}</span></td><td>${fmtDate(o.created_at)}</td></tr>`).join('');
+        tbody.innerHTML = orders.map(o => `<tr><td>${o.order_number}</td><td>${o.internal_id || ''} ${o.username}</td><td>${fmtRub(o.amount_rub)}</td><td><span class="badge badge-${o.status === 'active' ? 'pending' : o.status === 'completed' ? 'confirmed' : 'rejected'}">${orderStText(o.status)}</span></td><td>${fmtDate(o.created_at)}</td></tr>`).join('');
     } catch (e) {}
 }
 
-function showCreateOrderModal() { openModal('create-order-modal'); loadUsersForSelect(); }
+function showCreateOrderModal() { 
+    openModal('create-order-modal'); 
+    loadUsersForSelect().then(() => {
+        const userSelect = document.getElementById('order-user');
+        userSelect.addEventListener('change', updateOrderAvailableBalance);
+        updateOrderAvailableBalance();
+    }); 
+}
+
+function updateOrderAvailableBalance() {
+    const userId = document.getElementById('order-user').value;
+    const info = document.getElementById('order-available-info');
+    if (!userId || !allUsers.length) { if (info) info.textContent = ''; return; }
+    const user = allUsers.find(u => u.id == userId);
+    if (user) {
+        const available = (user.balance_rub || 0) - (user.held_rub || 0);
+        const wp = user.withdrawal_pending || 0;
+        if (info) info.innerHTML = `💰 Баланс: ${fmtRub(user.balance_rub)} | 🔒 Холд: ${fmtRub(user.held_rub || 0)} | ✅ Доступно: ${fmtRub(available)}${wp > 0 ? ` | 📤 Осталось вывод: ${fmtRub(wp)}` : ''}`;
+    }
+}
 
 async function createOrder() {
     const userId = document.getElementById('order-user').value;
@@ -227,7 +316,7 @@ async function loadAppeals() {
         const appeals = await res.json();
         const tbody = document.getElementById('appeals-body');
         if (!appeals.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = appeals.map(a => `<tr><td>${a.appeal_number}</td><td>${a.username}</td><td>${a.order_number || '—'}</td><td>${fmtRub(a.amount_rub)}</td><td><span class="badge badge-${a.status === 'pending' ? 'pending' : a.status === 'resolved' ? 'confirmed' : 'rejected'}">${appealStText(a.status)}</span></td><td>${a.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="resolveAppeal(${a.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectAppeal(${a.id})">✕</button>` : ''}</td></tr>`).join('');
+        tbody.innerHTML = appeals.map(a => `<tr><td>${a.appeal_number}</td><td>${a.internal_id || ''} ${a.username}</td><td>${a.order_number || '—'}</td><td>${fmtRub(a.amount_rub)}</td><td><span class="badge badge-${a.status === 'pending' ? 'pending' : a.status === 'resolved' ? 'confirmed' : 'rejected'}">${appealStText(a.status)}</span></td><td>${a.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="resolveAppeal(${a.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectAppeal(${a.id})">✕</button>` : ''}</td></tr>`).join('');
     } catch (e) {}
 }
 
@@ -254,7 +343,7 @@ async function loadDeposits() {
         const list = await res.json();
         const tbody = document.getElementById('deposits-body');
         if (!list.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = list.map(d => `<tr><td>#${d.id}</td><td>${d.username}</td><td>${d.amount_usdt}</td><td>${fmtRub(d.amount_rub)}</td><td>${d.network}</td><td style="max-width:100px;word-break:break-all;font-size:11px;">${d.tx_hash || '—'}</td><td><span class="badge badge-${d.status}">${stText(d.status)}</span></td><td>${d.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmDeposit(${d.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectDeposit(${d.id})">✕</button>` : ''}</td></tr>`).join('');
+        tbody.innerHTML = list.map(d => `<tr><td>${d.internal_id || '#' + d.id}</td><td>${d.username}</td><td>${d.amount_usdt}</td><td>${fmtRub(d.amount_rub)}</td><td>${d.network}</td><td style="max-width:100px;word-break:break-all;font-size:11px;">${d.tx_hash || '—'}</td><td><span class="badge badge-${d.status}">${stText(d.status)}</span></td><td>${d.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmDeposit(${d.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectDeposit(${d.id})">✕</button>` : ''}</td></tr>`).join('');
     } catch (e) {}
 }
 
@@ -281,7 +370,7 @@ async function loadWithdrawals() {
         const list = await res.json();
         const tbody = document.getElementById('withdrawals-body');
         if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#9ca3af;">Нет</td></tr>'; return; }
-        tbody.innerHTML = list.map(w => `<tr><td>#${w.id}</td><td>${w.username}</td><td>${fmtRub(w.amount_rub)}</td><td>${w.req_bank || '—'}</td><td>${w.req_name || '—'}</td><td><span class="badge badge-${w.status === 'completed' ? 'confirmed' : w.status}">${w.status === 'completed' ? 'Выполнен' : stText(w.status)}</span></td><td>${w.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmWithdrawal(${w.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectWithdrawal(${w.id})">✕</button>` : ''}</td></tr>`).join('');
+        tbody.innerHTML = list.map(w => `<tr><td>${w.internal_id || '#' + w.id}</td><td>${w.username}</td><td>${fmtRub(w.amount_rub)}</td><td>${w.req_bank || '—'}</td><td>${w.req_name || '—'}</td><td><span class="badge badge-${w.status === 'completed' ? 'confirmed' : w.status}">${w.status === 'completed' ? 'Выполнен' : stText(w.status)}</span></td><td>${w.status === 'pending' ? `<button class="btn btn-success btn-small" onclick="confirmWithdrawal(${w.id})">✓</button><button class="btn btn-danger btn-small" onclick="rejectWithdrawal(${w.id})">✕</button>` : ''}</td></tr>`).join('');
     } catch (e) {}
 }
 
@@ -293,11 +382,14 @@ async function loadUsers() {
     try {
         const res = await fetch('/api/admin/users');
         const users = await res.json();
-        document.getElementById('users-body').innerHTML = users.map(u => `
+        document.getElementById('users-body').innerHTML = users.map(u => {
+            const available = u.available_rub !== undefined ? u.available_rub : (u.balance_rub - (u.held_rub || 0));
+            const wp = u.withdrawal_pending || 0;
+            return `
             <tr>
-                <td>#${u.id}</td>
+                <td>${u.internal_id || '#' + u.id}</td>
                 <td>${u.username || 'N/A'}</td>
-                <td>${fmtRub(u.balance_rub)}</td>
+                <td>${fmtRub(u.balance_rub)}${(u.held_rub || 0) > 0 ? `<br><span style="font-size:11px;color:#f59e0b;">Холд: ${fmtRub(u.held_rub)}</span>` : ''}<br><span style="font-size:11px;color:#10b981;">Доступно: ${fmtRub(available)}</span>${wp > 0 ? `<br><span style="font-size:11px;color:#6366f1;">Осталось вывод: ${fmtRub(wp)}</span>` : ''}</td>
                 <td>${u.is_online ? '🟢' : '🔴'}</td>
                 <td>${u.is_verified ? '✅' : '❌'}</td>
                 <td>${u.totp_enabled ? '<span class="badge badge-2fa">2FA ✓</span>' : '—'}</td>
@@ -306,18 +398,24 @@ async function loadUsers() {
                     <button class="btn btn-small" onclick="viewUser(${u.id})">👁</button>
                     ${u.is_blocked ? `<button class="btn btn-success btn-small" onclick="unblockUser(${u.id})">🔓</button>` : `<button class="btn btn-warning btn-small" onclick="blockUser(${u.id})">🔒</button>`}
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     } catch (e) {}
 }
 
 async function viewUser(id) {
     const res = await fetch(`/api/admin/users/${id}`);
     const u = await res.json();
+    const held = u.held_rub || 0;
+    const withdrawalPending = u.withdrawal_pending || 0;
+    const available = u.balance_rub - held;
     document.getElementById('user-modal-body').innerHTML = `
         <h3>${u.username}</h3>
-        <p>ID: ${u.telegram_id || 'Нет'}</p>
+        <p>Внутренний ID: <strong>${u.internal_id || '—'}</strong></p>
         <p>Баланс: <strong>${fmtRub(u.balance_rub)}</strong></p>
+        ${held > 0 ? `<p style="color:#f59e0b;">🔒 Захолдено: <strong>${fmtRub(held)}</strong></p>` : ''}
+        <p style="color:#10b981;">✅ Доступно: <strong>${fmtRub(available)}</strong></p>
+        ${withdrawalPending > 0 ? `<p style="color:#6366f1;">📤 Осталось до вывода: <strong>${fmtRub(withdrawalPending)}</strong></p>` : ''}
         <p>Депозит: <strong>${(u.total_deposited_usdt || 0).toFixed(2)} USDT</strong></p>
         <p>Заработок: <strong>${fmtRub(u.total_earned_rub)}</strong></p>
         <p>Онлайн: ${u.is_online ? '🟢' : '🔴'}</p>
