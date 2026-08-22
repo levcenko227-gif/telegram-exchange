@@ -238,6 +238,10 @@ db.exec(`
 try { db.prepare('ALTER TABLE users ADD COLUMN held_rub REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
 try { db.prepare('ALTER TABLE users ADD COLUMN withdrawal_pending REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
 try { db.prepare('ALTER TABLE requisites ADD COLUMN is_archived INTEGER DEFAULT 0').run(); } catch (e) { /* column already exists */ }
+try { db.prepare('ALTER TABLE appeals ADD COLUMN receipt_url TEXT').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE appeals ADD COLUMN bank_statement_url TEXT').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE appeals ADD COLUMN client_action TEXT DEFAULT NULL').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE appeals ADD COLUMN requisite_id INTEGER DEFAULT 0').run(); } catch (e) {}
 
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('base_rate', '80');
@@ -432,7 +436,32 @@ app.post('/api/orders/:id/fail', isUserAuth, (req, res) => {
 });
 
 app.get('/api/appeals', isUserAuth, (req, res) => {
-  res.json(db.prepare('SELECT * FROM appeals WHERE user_id = ? ORDER BY created_at DESC').all(req.session.userId));
+  const appeals = db.prepare(`SELECT a.*, r.bank as req_bank, r.name as req_name, r.phone as req_phone FROM appeals a LEFT JOIN requisites r ON a.requisite_id = r.id WHERE a.user_id = ? ORDER BY a.created_at DESC`).all(req.session.userId);
+  res.json(appeals);
+});
+
+app.post('/api/appeals/:id/accept', isUserAuth, (req, res) => {
+  const { bank_statement_url } = req.body;
+  const appeal = db.prepare('SELECT * FROM appeals WHERE id = ? AND user_id = ?').get(req.params.id, req.session.userId);
+  if (!appeal) return res.status(404).json({ error: 'Не найдена' });
+  if (appeal.status !== 'pending') return res.status(400).json({ error: 'Апелляция уже обработана' });
+  if (!bank_statement_url) return res.status(400).json({ error: 'Прикрепите выписку из банка' });
+  db.prepare("UPDATE appeals SET client_action = 'accepted', bank_statement_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(bank_statement_url, req.params.id);
+  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`📋 Клиент подтвердил апелляцию ${appeal.appeal_number}. Приложена выписка.`, 'appeal');
+  sendSSEToAdmin('appeal_client_action', { appeal_number: appeal.appeal_number, action: 'accepted' });
+  res.json({ success: true });
+});
+
+app.post('/api/appeals/:id/reject', isUserAuth, (req, res) => {
+  const { bank_statement_url } = req.body;
+  const appeal = db.prepare('SELECT * FROM appeals WHERE id = ? AND user_id = ?').get(req.params.id, req.session.userId);
+  if (!appeal) return res.status(404).json({ error: 'Не найдена' });
+  if (appeal.status !== 'pending') return res.status(400).json({ error: 'Апелляция уже обработана' });
+  if (!bank_statement_url) return res.status(400).json({ error: 'Прикрепите выписку из банка' });
+  db.prepare("UPDATE appeals SET client_action = 'rejected', bank_statement_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(bank_statement_url, req.params.id);
+  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`📋 Клиент отклонил апелляцию ${appeal.appeal_number}. Приложена выписка.`, 'appeal');
+  sendSSEToAdmin('appeal_client_action', { appeal_number: appeal.appeal_number, action: 'rejected' });
+  res.json({ success: true });
 });
 
 // ==================== DEPOSITS ====================
@@ -466,6 +495,7 @@ app.post('/api/withdrawal/create', isUserAuth, (req, res) => {
   const minWithdrawal = parseFloat(getSetting('min_withdrawal_rub') || '1000');
   if (!amount_rub || amount_rub < minWithdrawal) return res.status(400).json({ error: `Минимум: ${minWithdrawal} ₽` });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  if (!user.is_online) return res.status(400).json({ error: 'Включите статус Online для создания заявки на вывод' });
   const available = user.balance_rub - user.held_rub;
   if (available < amount_rub) return res.status(400).json({ error: 'Недостаточно средств' });
   const req_data = db.prepare('SELECT * FROM requisites WHERE id = ? AND user_id = ?').get(requisite_id, req.session.userId);
@@ -701,6 +731,16 @@ app.post('/api/admin/admins/:id/delete', isAdminAuth, (req, res) => {
   res.json({ success: true });
 });
 
+app.get('/api/admin/users/with-pending-withdrawals', isAdminAuth, (req, res) => {
+  const users = db.prepare(`SELECT DISTINCT u.id, u.internal_id, u.username, u.first_name, u.balance_rub, u.held_rub, u.withdrawal_pending, u.is_online,
+    (SELECT SUM(w.amount_rub) FROM withdrawals w WHERE w.user_id = u.id AND w.status = 'pending') as pending_withdrawal_amount
+    FROM users u
+    INNER JOIN withdrawals w ON w.user_id = u.id AND w.status = 'pending'
+    WHERE u.is_online = 1 AND u.is_blocked = 0
+    ORDER BY u.username`).all();
+  res.json(users);
+});
+
 // ==================== ADMIN API ====================
 app.get('/api/admin/profile', isAdminAuth, (req, res) => {
   const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.session.adminId);
@@ -853,8 +893,8 @@ app.post('/api/admin/appeals/create', isAdminAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(uid);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   const num = appeal_number || genAppealNum();
-  const result = db.prepare('INSERT INTO appeals (user_id, appeal_number, order_number, amount_rub, description) VALUES (?, ?, ?, ?, ?)')
-    .run(uid, num, order_number || '', amount_rub, description || '');
+  const result = db.prepare('INSERT INTO appeals (user_id, appeal_number, order_number, amount_rub, description, receipt_url, requisite_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(uid, num, order_number || '', amount_rub, description || '', req.body.receipt_url || '', req.body.requisite_id || 0);
   db.prepare('UPDATE users SET held_rub = held_rub + ? WHERE id = ?').run(amount_rub, uid);
   db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(uid, `⚠️ Апелляция ${num} на ${amount_rub} ₽. Средства заморожены.`, 'appeal');
   sendSSEToUser(uid, 'new_appeal', { appeal_number: num, amount_rub });
