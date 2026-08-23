@@ -1,6 +1,6 @@
 /* ==========================================================================
-   blueberry — Admin Control Core JS
-   Human-crafted interactive logic with full server API & SSE integration
+   blueberry — Admin Control Core JS (Safe Navigation Edition)
+   All query selectors secured with optional chaining to prevent boot failure
    ========================================================================== */
 
 let currentPage = 'dashboard';
@@ -13,54 +13,61 @@ let currentNetworks = [];
 let currentSupportContacts = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ——— DOM Event Bindings ———
-    document.getElementById('login-form')?.addEventListener('submit', handleLogin);
-    
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            showPage(item.dataset.page);
+    // ——— DOM Event Bindings with Safety Checks ———
+    try {
+        document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+        
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                showPage(item.dataset.page);
+            });
         });
-    });
 
-    document.getElementById('btn-logout')?.addEventListener('click', logout);
-    document.getElementById('btn-menu')?.addEventListener('click', () => {
-        document.getElementById('sidebar')?.classList.toggle('open');
-    });
+        document.getElementById('btn-logout')?.addEventListener('click', logout);
+        document.getElementById('btn-menu')?.addEventListener('click', () => {
+            document.getElementById('sidebar')?.classList.toggle('open');
+        });
 
-    document.getElementById('btn-change-creds')?.addEventListener('click', changeAdminCreds);
-    document.getElementById('btn-setup-2fa')?.addEventListener('click', setupAdmin2FA);
-    document.getElementById('btn-verify-admin-2fa')?.addEventListener('click', verifyAdmin2FA);
+        document.getElementById('btn-change-creds')?.addEventListener('click', changeAdminCreds);
+        document.getElementById('btn-setup-2fa')?.addEventListener('click', setupAdmin2FA);
+        document.getElementById('btn-verify-admin-2fa')?.addEventListener('click', verifyAdmin2FA);
 
-    document.getElementById('btn-create-user')?.addEventListener('click', () => openModal('create-user-modal'));
-    document.getElementById('btn-confirm-create')?.addEventListener('click', createUser);
+        document.getElementById('btn-create-user')?.addEventListener('click', () => openModal('create-user-modal'));
+        document.getElementById('btn-confirm-create')?.addEventListener('click', createUser);
 
-    document.getElementById('btn-create-admin')?.addEventListener('click', () => openModal('create-admin-modal'));
-    document.getElementById('btn-confirm-create-admin')?.addEventListener('click', createAdmin);
+        document.getElementById('btn-create-admin')?.addEventListener('click', () => openModal('create-admin-modal'));
+        document.getElementById('btn-confirm-create-admin')?.addEventListener('click', createAdmin);
 
-    document.getElementById('settings-form')?.addEventListener('submit', saveSettings);
-    document.getElementById('btn-save-networks')?.addEventListener('click', saveNetworks);
-    document.getElementById('btn-save-contacts')?.addEventListener('click', saveContacts);
+        document.getElementById('settings-form')?.addEventListener('submit', saveSettings);
+        document.getElementById('btn-save-networks')?.addEventListener('click', saveNetworks);
+        document.getElementById('btn-save-contacts')?.addEventListener('click', saveContacts);
 
-    document.getElementById('btn-notifications')?.addEventListener('click', toggleNotifications);
-    document.getElementById('btn-mark-read')?.addEventListener('click', markNotificationsRead);
+        document.getElementById('btn-notifications')?.addEventListener('click', toggleNotifications);
+        document.getElementById('btn-mark-read')?.addEventListener('click', markNotificationsRead);
 
-    document.getElementById('btn-create-order')?.addEventListener('click', showCreateOrderModal);
-    document.getElementById('btn-confirm-create-order')?.addEventListener('click', createOrder);
+        document.getElementById('btn-create-order')?.addEventListener('click', showCreateOrderModal);
+        document.getElementById('btn-confirm-create-order')?.addEventListener('click', createOrder);
 
-    document.getElementById('btn-create-appeal')?.addEventListener('click', showCreateAppealModal);
-    document.getElementById('btn-confirm-create-appeal')?.addEventListener('click', createAppeal);
+        document.getElementById('btn-create-appeal')?.addEventListener('click', showCreateAppealModal);
+        document.getElementById('btn-confirm-create-appeal')?.addEventListener('click', createAppeal);
 
-    // Filters
-    document.getElementById('filter-order-status')?.addEventListener('change', loadOrders);
-    document.getElementById('filter-appeal-status')?.addEventListener('change', loadAppeals);
-    document.getElementById('filter-deposit-status')?.addEventListener('change', loadDeposits);
-    document.getElementById('filter-withdrawal-status')?.addEventListener('change', loadWithdrawals);
-    document.getElementById('filter-ver-status')?.addEventListener('change', loadVerifications);
+        // Filters
+        document.getElementById('filter-order-status')?.addEventListener('change', loadOrders);
+        document.getElementById('filter-appeal-status')?.addEventListener('change', loadAppeals);
+        document.getElementById('filter-deposit-status')?.addEventListener('change', loadDeposits);
+        document.getElementById('filter-withdrawal-status')?.addEventListener('change', loadWithdrawals);
+        document.getElementById('filter-ver-status')?.addEventListener('change', loadVerifications);
 
-    // Rate dynamic calculation
-    document.getElementById('s-base_rate')?.addEventListener('input', calculateFinalRatePreview);
-    document.getElementById('s-markup_percent')?.addEventListener('input', calculateFinalRatePreview);
+        // Notifications Modal Broadcast Trigger
+        document.getElementById('btn-confirm-send-notification')?.addEventListener('click', sendNotification);
+
+        // Rate calculations
+        document.getElementById('s-base_rate')?.addEventListener('input', calculateFinalRatePreview);
+        document.getElementById('s-markup_percent')?.addEventListener('input', calculateFinalRatePreview);
+    } catch (err) {
+        console.error("DOM binding error caught silently", err);
+    }
 
     checkAuth();
 });
@@ -1117,6 +1124,26 @@ async function markNotificationsRead() {
     loadNotifications();
 }
 
+async function sendNotification() {
+    const userId = document.getElementById('notif-user').value;
+    const type = document.getElementById('notif-type').value;
+    const message = document.getElementById('notif-message').value.trim();
+
+    if (!message) return notify('Введите сообщение', 'error');
+
+    const res = await fetch('/api/admin/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, type, message })
+    });
+    const data = await res.json();
+    if (data.success) {
+        notify('Уведомление отправлено пользователю', 'success');
+        document.getElementById('notif-message').value = '';
+        closeModal('send-notification-modal');
+    } else notify(data.error, 'error');
+}
+
 // ——— SSE (REAL-TIME ADMlN) ———
 function connectAdminSSE() {
     if (adminEventSource) { adminEventSource.close(); adminEventSource = null; }
@@ -1188,7 +1215,8 @@ function openModal(id) {
     }
 }
 
-function closeModal(id) {
+// ——— GLOBAL CLOSE MODAL FUNCTION (FIX FOR CANCEL BUTTONS) ———
+window.closeModal = function(id) {
     const m = document.getElementById(id);
     if (m) m.style.display = 'none';
 }
