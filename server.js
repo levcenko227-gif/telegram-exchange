@@ -242,6 +242,7 @@ try { db.prepare('ALTER TABLE appeals ADD COLUMN receipt_url TEXT').run(); } cat
 try { db.prepare('ALTER TABLE appeals ADD COLUMN bank_statement_url TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE appeals ADD COLUMN client_action TEXT DEFAULT NULL').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE appeals ADD COLUMN requisite_id INTEGER DEFAULT 0').run(); } catch (e) {}
+try { db.prepare('ALTER TABLE users ADD COLUMN actions_restricted INTEGER DEFAULT 0').run(); } catch (e) {}
 
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('base_rate', '80');
@@ -249,6 +250,7 @@ insertSetting.run('markup_percent', '5');
 insertSetting.run('min_deposit_usdt', '20');
 insertSetting.run('min_withdrawal_rub', '1000');
 insertSetting.run('support_contact', '@support');
+insertSetting.run('support_contacts', JSON.stringify([{name:'Telegram',value:'@support',enabled:true},{name:'WhatsApp',value:'',enabled:false},{name:'Email',value:'',enabled:false}]));
 insertSetting.run('app_name', 'CryptoSwaap');
 insertSetting.run('order_timer_minutes', '15');
 insertSetting.run('networks', JSON.stringify([
@@ -315,7 +317,7 @@ app.post('/api/login', loginLimiter, (req, res) => {
   db.prepare('INSERT INTO login_attempts (ip_address, username, success) VALUES (?, ?, 1)').run(req.ip, username);
   db.prepare('UPDATE users SET failed_attempts = 0 WHERE id = ?').run(user.id);
   req.session.userId = user.id;
-  res.json({ success: true, user: { id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, held_rub: user.held_rub || 0, withdrawal_pending: user.withdrawal_pending || 0, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1 } });
+  res.json({ success: true, user: { id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, held_rub: user.held_rub || 0, withdrawal_pending: user.withdrawal_pending || 0, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1, actions_restricted: user.actions_restricted === 1 } });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -329,7 +331,7 @@ app.get('/api/user/profile', isUserAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!user) return res.status(404).json({ error: 'Не найден' });
   const verification = db.prepare('SELECT * FROM verification_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1').get(req.session.userId);
-  res.json({ id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, held_rub: user.held_rub || 0, withdrawal_pending: user.withdrawal_pending || 0, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1, verification_status: verification ? verification.status : 'none', created_at: user.created_at });
+  res.json({ id: user.id, internal_id: user.internal_id, username: user.username, first_name: user.first_name, balance_rub: user.balance_rub, held_rub: user.held_rub || 0, withdrawal_pending: user.withdrawal_pending || 0, total_deposited_usdt: user.total_deposited_usdt, total_earned_rub: user.total_earned_rub, totp_enabled: user.totp_enabled === 1, is_online: user.is_online === 1, is_verified: user.is_verified === 1, password_changed: user.password_changed === 1, username_changed: user.username_changed === 1, actions_restricted: user.actions_restricted === 1, verification_status: verification ? verification.status : 'none', created_at: user.created_at });
 });
 
 app.post('/api/user/change-password', isUserAuth, (req, res) => {
@@ -379,6 +381,10 @@ app.get('/api/exchange/rate', (req, res) => {
   const rate = getCurrentRate();
   const networks = getNetworks().filter(n => n.enabled);
   res.json({ base_rate: rate.base, markup_percent: rate.markup, final_rate: rate.final.toFixed(2), networks });
+});
+
+app.get('/api/support/contacts', (req, res) => {
+  try { res.json(JSON.parse(getSetting('support_contacts') || '[]')); } catch { res.json([]); }
 });
 
 // ==================== ORDERS ====================
@@ -496,6 +502,9 @@ app.post('/api/withdrawal/create', isUserAuth, (req, res) => {
   if (!amount_rub || amount_rub < minWithdrawal) return res.status(400).json({ error: `Минимум: ${minWithdrawal} ₽` });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!user.is_online) return res.status(400).json({ error: 'Включите статус Online для создания заявки на вывод' });
+  if (user.actions_restricted) return res.status(400).json({ error: 'Действия ограничены администратором' });
+  const activeAppeal = db.prepare("SELECT id FROM appeals WHERE user_id = ? AND status = 'pending' AND client_action IS NULL").get(req.session.userId);
+  if (activeAppeal) return res.status(400).json({ error: 'У вас активная апелляция. Сначала отправьте выписку из банка.' });
   const available = user.balance_rub - user.held_rub;
   if (available < amount_rub) return res.status(400).json({ error: 'Недостаточно средств' });
   const req_data = db.prepare('SELECT * FROM requisites WHERE id = ? AND user_id = ?').get(requisite_id, req.session.userId);
@@ -771,7 +780,7 @@ app.get('/api/admin/settings', isAdminAuth, (req, res) => {
 
 app.post('/api/admin/settings', isAdminAuth, (req, res) => {
   const { key, value } = req.body;
-  const allowedKeys = ['base_rate', 'markup_percent', 'min_deposit_usdt', 'min_withdrawal_rub', 'support_contact', 'app_name', 'networks', 'order_timer_minutes'];
+  const allowedKeys = ['base_rate', 'markup_percent', 'min_deposit_usdt', 'min_withdrawal_rub', 'support_contact', 'support_contacts', 'app_name', 'networks', 'order_timer_minutes'];
   if (!allowedKeys.includes(key)) return res.status(400).json({ error: 'Недопустимый ключ' });
   db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(value, key);
   res.json({ success: true });
@@ -1023,6 +1032,8 @@ app.post('/api/admin/users/:id/balance', isAdminAuth, (req, res) => {
 
 app.post('/api/admin/users/:id/block', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET is_blocked = 1 WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/unblock', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET is_blocked = 0 WHERE id = ?').run(req.params.id); res.json({ success: true }); });
+app.post('/api/admin/users/:id/restrict', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET actions_restricted = 1 WHERE id = ?').run(req.params.id); sendSSEToUser(parseInt(req.params.id), 'actions_restricted', {}); res.json({ success: true }); });
+app.post('/api/admin/users/:id/unrestrict', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET actions_restricted = 0 WHERE id = ?').run(req.params.id); sendSSEToUser(parseInt(req.params.id), 'actions_unrestricted', {}); res.json({ success: true }); });
 app.post('/api/admin/users/:id/reset-2fa', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/reset-password', isAdminAuth, (req, res) => {
   const new_password = genPass(8);
