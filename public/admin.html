@@ -305,6 +305,10 @@
         .theme-toggle-btn:hover { background: var(--bg-hover); color: var(--amber); border-color: var(--brd-strong); }
         .theme-toggle-btn i { width: 16px; height: 16px; }
 
+        /* --- PAGES CONTROLLER (CRITICAL FIX FOR SWAP) --- */
+        .page { display: none !important; }
+        .page.active { display: block !important; animation: modalBgFade .35s var(--ease-out); }
+
         @media (max-width: 1200px) {
           .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -736,7 +740,7 @@
                 </div>
                 <div class="form-group">
                     <label>Текст сообщения</label>
-                    <textarea id="notif-message" rows="4" placeholder="Введите текст сообщения..."></textarea>
+                    <textarea id="notif-message" rows="4" placeholder="Введите text сообщения..."></textarea>
                 </div>
                 <button class="btn btn-primary btn-full" id="btn-confirm-send-notification">Отправить сообщение</button>
             </div>
