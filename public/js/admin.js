@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-confirm-create-admin').addEventListener('click', createAdmin);
     document.getElementById('settings-form').addEventListener('submit', saveSettings);
     document.getElementById('btn-save-networks').addEventListener('click', saveNetworks);
+    document.getElementById('btn-save-contacts')?.addEventListener('click', saveContacts);
     document.getElementById('btn-notifications').addEventListener('click', toggleNotifications);
     document.getElementById('btn-mark-read').addEventListener('click', markNotificationsRead);
     document.getElementById('btn-create-order').addEventListener('click', showCreateOrderModal);
@@ -451,6 +452,7 @@ async function loadUsers() {
                 <td>
                     <button class="btn btn-small" onclick="viewUser(${u.id})">👁</button>
                     ${u.is_blocked ? `<button class="btn btn-success btn-small" onclick="unblockUser(${u.id})">🔓</button>` : `<button class="btn btn-warning btn-small" onclick="blockUser(${u.id})">🔒</button>`}
+                    ${u.actions_restricted ? `<button class="btn btn-success btn-small" onclick="unrestrictUser(${u.id})">Разрешить</button>` : `<button class="btn btn-danger btn-small" onclick="restrictUser(${u.id})">Запрет</button>`}
                 </td>
             </tr>`;
         }).join('');
@@ -505,6 +507,8 @@ async function adjustBal(id, action) {
 
 async function blockUser(id) { if (!confirm('Заблокировать?')) return; await fetch(`/api/admin/users/${id}/block`, { method: 'POST' }); notify('Заблокирован', 'success'); loadUsers(); }
 async function unblockUser(id) { await fetch(`/api/admin/users/${id}/unblock`, { method: 'POST' }); notify('Разблокирован', 'success'); loadUsers(); }
+async function restrictUser(id) { if (!confirm('Запретить действия?')) return; await fetch(`/api/admin/users/${id}/restrict`, { method: 'POST' }); notify('Действия запрещены', 'success'); loadUsers(); }
+async function unrestrictUser(id) { await fetch(`/api/admin/users/${id}/unrestrict`, { method: 'POST' }); notify('Действия разрешены', 'success'); loadUsers(); }
 async function reset2fa(id) { if (!confirm('Сбросить 2FA?')) return; await fetch(`/api/admin/users/${id}/reset-2fa`, { method: 'POST' }); notify('2FA сброшена', 'success'); viewUser(id); }
 async function resetPassword(id) { if (!confirm('Сбросить пароль?')) return; const res = await fetch(`/api/admin/users/${id}/reset-password`, { method: 'POST' }); const data = await res.json(); if (data.success) { notify(`Пароль: ${data.new_password}`, 'success'); alert(`Пароль: ${data.new_password}`); } }
 
@@ -572,8 +576,37 @@ async function loadSettings() {
     document.getElementById('final-rate').textContent = `${(base * (1 + markup / 100)).toFixed(2)} ₽`;
     try {
         const networks = JSON.parse(s.networks || '[]');
-        document.getElementById('networks-list').innerHTML = networks.map((n, i) => `<div style="padding:12px;background:var(--gray-50);border-radius:8px;margin:8px 0;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>${n.name}</strong><label><input type="checkbox" id="net-enabled-${i}" ${n.enabled ? 'checked' : ''}> Включена</label></div><div class="form-group" style="margin-bottom:0;"><label>Адрес кошелька</label><input type="text" id="net-wallet-${i}" value="${n.wallet || ''}"></div></div>`).join('');
+        document.getElementById('networks-list').innerHTML = networks.map((n, i) => `<div style="padding:12px;background:var(--gray-50);border-radius:8px;margin:8px 0;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><strong>${n.coin || 'USDT'} / ${n.id}</strong><label><input type="checkbox" id="net-enabled-${i}" ${n.enabled ? 'checked' : ''}> Включена</label></div><div class="form-group" style="margin-bottom:0;"><label>Адрес кошелька</label><input type="text" id="net-wallet-${i}" value="${n.wallet || ''}"></div></div>`).join('') + '<button class="btn btn-small btn-primary" style="margin-top:12px;" onclick="addNetwork()">+ Добавить сеть</button>';
     } catch (e) {}
+    try {
+        const contacts = JSON.parse(s.support_contacts || '[]');
+        document.getElementById('support-contacts-list').innerHTML = contacts.map((c, i) => `<div style="padding:8px;background:var(--gray-50);border-radius:8px;margin:4px 0;display:flex;gap:8px;align-items:center;"><input type="text" id="contact-name-${i}" value="${c.name}" placeholder="Название" style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><input type="text" id="contact-value-${i}" value="${c.value}" placeholder="Ссылка или @username" style="flex:2;padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><label><input type="checkbox" id="contact-enabled-${i}" ${c.enabled ? 'checked' : ''}> Активен</label></div>`).join('') + '<button class="btn btn-small" style="margin-top:8px;" onclick="addContact()">+ Добавить контакт</button>';
+    } catch (e) {}
+}
+
+function addContact() {
+    const container = document.getElementById('support-contacts-list');
+    const i = container.querySelectorAll('div').length;
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:8px;background:var(--gray-50);border-radius:8px;margin:4px 0;display:flex;gap:8px;align-items:center;';
+    div.innerHTML = `<input type="text" id="contact-name-${i}" value="" placeholder="Название" style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><input type="text" id="contact-value-${i}" value="" placeholder="Ссылка или @username" style="flex:2;padding:8px;border:1px solid #e5e7eb;border-radius:8px;"><label><input type="checkbox" id="contact-enabled-${i}" checked> Активен</label>`;
+    container.insertBefore(div, container.lastElementChild);
+}
+
+function addNetwork() {
+    const name = prompt('Название сети (например USDT TRC-20):');
+    if (!name) return;
+    const coin = prompt('Монета (USDT, BTC, ETH и т.д.):') || 'USDT';
+    const id = prompt('ID сети (TRC-20, BEP-20, ERC-20, BTC, ETH, SOL):');
+    if (!id) return;
+    const wallet = prompt('Адрес кошелька:');
+    if (!wallet) return;
+    fetch('/api/admin/settings').then(r => r.json()).then(s => {
+        let networks = [];
+        try { networks = JSON.parse(s.networks || '[]'); } catch (e) {}
+        networks.push({ id, name, coin, enabled: true, wallet });
+        fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'networks', value: JSON.stringify(networks) }) }).then(() => { notify('Сеть добавлена!', 'success'); loadSettings(); });
+    });
 }
 
 async function saveSettings(e) {
@@ -593,6 +626,20 @@ async function saveNetworks() {
     networks.forEach((n, i) => { n.enabled = document.getElementById(`net-enabled-${i}`)?.checked || false; n.wallet = document.getElementById(`net-wallet-${i}`)?.value || ''; });
     await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'networks', value: JSON.stringify(networks) }) });
     notify('Сети сохранены!', 'success');
+}
+
+async function saveContacts() {
+    const container = document.getElementById('support-contacts-list');
+    const divs = container.querySelectorAll('div');
+    const contacts = [];
+    divs.forEach((div, i) => {
+        const nameEl = document.getElementById(`contact-name-${i}`);
+        const valueEl = document.getElementById(`contact-value-${i}`);
+        const enabledEl = document.getElementById(`contact-enabled-${i}`);
+        if (nameEl && valueEl) contacts.push({ name: nameEl.value, value: valueEl.value, enabled: enabledEl?.checked || false });
+    });
+    await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'support_contacts', value: JSON.stringify(contacts) }) });
+    notify('Контакты сохранены!', 'success');
 }
 
 // ==================== ADMIN SECURITY ====================
