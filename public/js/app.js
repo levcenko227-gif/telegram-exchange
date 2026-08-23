@@ -57,12 +57,10 @@ async function doLogout() { await fetch('/api/logout', { method: 'POST' }); curr
 function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
-    
-    const needsVerification = !currentUser.is_verified;
     const needsPasswordChange = !currentUser.password_changed;
     const needs2FA = !currentUser.totp_enabled;
-    
-    if (needsVerification || needsPasswordChange || needs2FA) {
+    const needsVerification = !currentUser.is_verified;
+    if (needsPasswordChange || needs2FA || needsVerification) {
         showSetupWizard();
     } else {
         showDashboard();
@@ -80,29 +78,7 @@ function showSetupWizard() {
 
 function updateSetupSteps() {
     let allComplete = true;
-    
-    // Step 1: Verification
-    if (currentUser.is_verified) {
-        document.getElementById('step-verification-status').textContent = '✅';
-        document.getElementById('step-verification-form').style.display = 'none';
-        document.getElementById('step-verification-pending').style.display = 'none';
-        document.getElementById('step-verification').classList.add('completed');
-        document.getElementById('step-verification').classList.remove('locked');
-    } else if (currentUser.verification_status === 'pending') {
-        document.getElementById('step-verification-status').textContent = '⏳';
-        document.getElementById('step-verification-form').style.display = 'none';
-        document.getElementById('step-verification-pending').style.display = 'block';
-        document.getElementById('step-verification').classList.remove('locked');
-        allComplete = false;
-    } else {
-        document.getElementById('step-verification-status').textContent = '❌';
-        document.getElementById('step-verification-form').style.display = 'block';
-        document.getElementById('step-verification-pending').style.display = 'none';
-        document.getElementById('step-verification').classList.remove('locked');
-        allComplete = false;
-    }
-    
-    // Step 2: Password
+    // Step 1: Password
     if (currentUser.password_changed) {
         document.getElementById('step-password-status').textContent = '✅';
         document.getElementById('step-password-form').style.display = 'none';
@@ -111,13 +87,10 @@ function updateSetupSteps() {
     } else {
         document.getElementById('step-password-status').textContent = '❌';
         document.getElementById('step-password-form').style.display = 'block';
-        if (currentUser.is_verified) {
-            document.getElementById('step-password').classList.remove('locked');
-        }
+        document.getElementById('step-password').classList.remove('locked');
         allComplete = false;
     }
-    
-    // Step 3: 2FA
+    // Step 2: 2FA
     if (currentUser.totp_enabled) {
         document.getElementById('step-2fa-status').textContent = '✅';
         document.getElementById('step-2fa-form').style.display = 'none';
@@ -132,7 +105,23 @@ function updateSetupSteps() {
         }
         allComplete = false;
     }
-    
+    // Step 3: Verification (contact admin)
+    const stepVer = document.getElementById('step-verification');
+    if (stepVer) {
+        if (currentUser.is_verified) {
+            document.getElementById('step-verification-status').textContent = '✅';
+            const form = document.getElementById('step-verification-form');
+            if (form) form.style.display = 'none';
+            stepVer.classList.add('completed');
+            stepVer.classList.remove('locked');
+        } else {
+            document.getElementById('step-verification-status').textContent = '❌';
+            const form = document.getElementById('step-verification-form');
+            if (form) form.innerHTML = '<div style="padding:16px;background:#fef3c7;border-radius:8px;text-align:center;"><p style="font-weight:600;color:#92400e;">Для завершения регистрации свяжитесь с администратором для прохождения верификации.</p><p style="font-size:13px;color:#92400e;margin-top:8px;">Верификация проходит в личном чате Telegram. Никакие данные не хранятся на сайте.</p></div>';
+            stepVer.classList.remove('locked');
+            allComplete = false;
+        }
+    }
     if (allComplete) {
         document.getElementById('setup-complete').style.display = 'block';
     }
@@ -590,7 +579,7 @@ async function loadRequisites() {
                 container.innerHTML = list.map(r => `<div style="padding:12px;background:${r.is_active ? '#d1fae5' : 'var(--gray-50)'};border-radius:8px;margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid ${r.is_active ? '#86efac' : 'var(--gray-200)'};"><div><div style="font-weight:600;">${r.bank}</div><div style="font-size:13px;color:var(--gray-500);">${r.name} | ${r.phone}</div>${r.is_active ? '<span style="font-size:11px;color:#065f46;font-weight:600;">🟢 Активен</span>' : ''}</div><div style="display:flex;gap:8px;">${r.is_active ? `<button class="btn btn-small btn-danger" onclick="deactivateReq(${r.id})">Выключить</button>` : `<button class="btn btn-small btn-success" onclick="activateReq(${r.id})">Включить</button>`}<button class="btn btn-small" onclick="archiveReq(${r.id})">📦</button></div></div>`).join('');
             }
         }
-        if (select) select.innerHTML = '<option value="">Выберите реквизит</option>' + list.map(r => `<option value="${r.id}">${r.bank} - ${r.name} (${r.phone})</option>`).join('');
+        if (select) select.innerHTML = '<option value="">Выберите реквизит</option>' + list.filter(r => r.is_active).map(r => `<option value="${r.id}">${r.bank} - ${r.name} (${r.phone})</option>`).join('');
         loadArchivedRequisites();
     } catch (e) {}
 }
