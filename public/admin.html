@@ -1,81 +1,436 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoSwaap - Админ</title>
-    <link rel="stylesheet" href="/css/admin.css">
+    <title>blueberry — Панель управления</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================================================
+           blueberry — Premium Admin UI (Linear/Raycast aesthetic)
+           ========================================================================== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+          --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+          --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+          --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px;
+          --sidebar-w: 260px; --header-h: 56px;
+          --font-display: 'Outfit', system-ui, sans-serif;
+          --font-mono: 'JetBrains Mono', monospace;
+          --ease-out: cubic-bezier(.16, 1, .3, 1);
+          --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
+        }
+
+        /* ========== DARK THEME ========== */
+        [data-theme="dark"] {
+          --bg-root: #06040f; --bg-surface: #0c0a1a; --bg-elevated: #13102a;
+          --bg-hover: #1e183f; --bg-active: #252052; --bg-input: #080614;
+          --brd-subtle: rgba(255, 255, 255, 0.05);
+          --brd-default: rgba(255, 255, 255, 0.09);
+          --brd-strong: rgba(255, 255, 255, 0.15);
+          --accent: #818cf8; --accent-hover: #a5b4fc; --accent-glow: rgba(129, 140, 248, 0.2);
+          --mint: #34d399; --mint-subtle: rgba(52, 211, 153, 0.1);
+          --rose: #fb7185; --rose-subtle: rgba(251, 113, 133, 0.1);
+          --amber: #fbbf24; --amber-subtle: rgba(251, 191, 36, 0.1);
+          --txt-1: #f1f0ff; --txt-2: #9896b8; --txt-3: #5c5a78;
+          --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+          --shadow-overlay: rgba(0,0,0,0.6);
+          --noise-opacity: 0.035;
+          --login-bg: #06040f;
+          --mesh-1: rgba(99, 102, 241, 0.1); --mesh-2: rgba(168, 85, 247, 0.06);
+        }
+
+        /* ========== LIGHT THEME ========== */
+        [data-theme="light"] {
+          --bg-root: #f8f7ff; --bg-surface: #ffffff; --bg-elevated: #f0eeff;
+          --bg-hover: #e3e0ff; --bg-active: #d5d0ff; --bg-input: #f5f3ff;
+          --brd-subtle: rgba(99, 102, 241, 0.06);
+          --brd-default: rgba(99, 102, 241, 0.12);
+          --brd-strong: rgba(99, 102, 241, 0.2);
+          --accent: #6366f1; --accent-hover: #4f46e5; --accent-glow: rgba(99, 102, 241, 0.15);
+          --mint: #059669; --mint-subtle: rgba(5, 150, 105, 0.08);
+          --rose: #e11d48; --rose-subtle: rgba(225, 29, 72, 0.08);
+          --amber: #d97706; --amber-subtle: rgba(217, 119, 6, 0.08);
+          --txt-1: #1e1b4b; --txt-2: #6b7280; --txt-3: #9ca3af;
+          --shadow-card: 0 8px 24px rgba(99, 102, 241, 0.05);
+          --shadow-overlay: rgba(30, 27, 75, 0.3);
+          --noise-opacity: 0.015;
+          --login-bg: #f0eeff;
+          --mesh-1: rgba(99, 102, 241, 0.05); --mesh-2: rgba(168, 85, 247, 0.03);
+        }
+
+        html { font-size: 14px; -webkit-font-smoothing: antialiased; }
+        body {
+          font-family: var(--font-display); background: var(--bg-root); color: var(--txt-1);
+          min-height: 100vh; overflow-x: hidden; transition: background .4s var(--ease-out), color .3s;
+        }
+        body::after {
+          content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9998; opacity: var(--noise-opacity);
+          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+        }
+
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--brd-strong); border-radius: 3px; }
+        ::selection { background: var(--accent); color: #fff; }
+        .hidden { display: none !important; }
+
+        /* ==========================================================================
+           1. AUTHORIZATION SCREEN
+           ========================================================================== */
+        .login-screen {
+          position: fixed; inset: 0; z-index: 9999; background: var(--login-bg);
+          display: flex; align-items: center; justify-content: center; transition: background .4s;
+        }
+        .login-screen::before {
+          content: ''; position: absolute; width: 700px; height: 700px; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          background: radial-gradient(ellipse at 30% 40%, var(--mesh-1) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, var(--mesh-2) 0%, transparent 60%);
+          pointer-events: none; animation: floatMesh 12s ease-in-out infinite alternate;
+        }
+        @keyframes floatMesh {
+          0% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+          100% { transform: translate(-48%, -52%) scale(1.08) rotate(3deg); }
+        }
+        .login-card {
+          width: 420px; max-width: 92vw; background: var(--bg-surface); border: 1px solid var(--brd-default);
+          border-radius: var(--r-xl); padding: var(--sp-7) var(--sp-6) var(--sp-6); box-shadow: var(--shadow-card);
+          text-align: center; position: relative; backdrop-filter: blur(40px);
+        }
+        .login-logo {
+          width: 48px; height: 48px; margin: 0 auto var(--sp-4);
+          background: linear-gradient(135deg, var(--accent), #c084fc);
+          border-radius: var(--r-md); display: grid; place-items: center; box-shadow: 0 0 24px var(--accent-glow);
+        }
+        .login-logo i { width: 24px; height: 24px; color: #fff; }
+        .login-card h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.4px; margin-bottom: 20px; }
+
+        /* ==========================================================================
+           2. SIDEBAR NAVIGATION
+           ========================================================================== */
+        #sidebar {
+          width: var(--sidebar-w); height: 100vh; position: fixed; left: 0; top: 0;
+          background: var(--bg-surface); border-right: 1px solid var(--brd-subtle);
+          display: flex; flex-direction: column; z-index: 100;
+          transition: transform .3s var(--ease-out), background .4s;
+        }
+        .sidebar-header {
+          height: var(--header-h); padding: 0 var(--sp-5); display: flex; align-items: center;
+          border-bottom: 1px solid var(--brd-subtle); flex-shrink: 0;
+        }
+        .sidebar-logo {
+          width: 28px; height: 28px; background: linear-gradient(135deg, var(--accent), #c084fc);
+          border-radius: var(--r-sm); display: grid; place-items: center; box-shadow: 0 0 16px var(--accent-glow);
+        }
+        .sidebar-logo i { width: 14px; height: 14px; color: #fff; }
+        .sidebar-title { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.4px; margin-left: 10px; }
+        .sidebar-nav { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-3); }
+        .nav-item {
+          display: flex; align-items: center; gap: var(--sp-3); padding: 10px var(--sp-3);
+          border-radius: var(--r-sm); color: var(--txt-2); font-weight: 500; font-size: .88rem;
+          cursor: pointer; transition: all .15s; margin-bottom: 2px; user-select: none; text-decoration: none;
+        }
+        .nav-item i { width: 16px; height: 16px; flex-shrink: 0; opacity: .5; transition: opacity .15s; }
+        .nav-item:hover { background: var(--bg-hover); color: var(--txt-1); }
+        .nav-item:hover i { opacity: .8; }
+        .nav-item.active { background: var(--berry-subtle); color: var(--accent); font-weight: 600; }
+        .nav-item.active i { opacity: 1; color: var(--accent); }
+        .sidebar-footer { padding: var(--sp-4); border-top: 1px solid var(--brd-subtle); flex-shrink: 0; }
+
+        /* ==========================================================================
+           3. MAIN LAYOUT & HEADER
+           ========================================================================== */
+        .main-content { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
+        .admin-header {
+          height: var(--header-h); border-bottom: 1px solid var(--brd-subtle);
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 var(--sp-7); position: sticky; top: 0; z-index: 50;
+          background: color-mix(in srgb, var(--bg-root) 80%, transparent);
+          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: background .4s;
+        }
+        .btn-menu {
+          display: none; width: 34px; height: 34px; border-radius: var(--r-sm);
+          border: 1px solid var(--brd-default); background: var(--bg-elevated); color: var(--txt-2);
+          cursor: pointer; transition: all .15s;
+        }
+        .btn-menu:hover { border-color: var(--brd-strong); color: var(--txt-1); }
+        .btn-menu i { width: 16px; height: 16px; margin: 0 auto; }
+        .header-right { display: flex; align-items: center; gap: var(--sp-3); }
+        .topbar-clock { font-family: var(--font-mono); font-size: .8rem; color: var(--txt-3); font-weight: 500; }
+        .btn-notification {
+          width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--brd-default);
+          background: var(--bg-elevated); color: var(--txt-2); display: grid; place-items: center;
+          cursor: pointer; transition: all .15s; position: relative;
+        }
+        .btn-notification:hover { background: var(--bg-hover); color: var(--txt-1); border-color: var(--brd-strong); }
+        .btn-notification i { width: 16px; height: 16px; }
+        .notif-badge {
+          position: absolute; top: -4px; right: -4px; background: var(--rose); color: #fff;
+          font-size: .65rem; font-weight: 800; border-radius: 10px; min-width: 16px; height: 16px;
+          display: grid; place-items: center; padding: 0 4px; border: 1.5px solid var(--bg-root);
+        }
+        .content { padding: var(--sp-7); }
+
+        /* ==========================================================================
+           4. METRICS & CARDS
+           ========================================================================== */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-4); margin-bottom: var(--sp-7); }
+        .stat-card {
+          padding: var(--sp-5); background: var(--bg-surface); border: 1px solid var(--brd-subtle);
+          border-radius: var(--r-lg); box-shadow: var(--shadow-card); transition: all .25s ease;
+          display: flex; align-items: center; gap: var(--sp-4); position: relative; overflow: hidden;
+        }
+        .stat-card:hover { border-color: var(--brd-strong); transform: translateY(-2px); }
+        .stat-card::after {
+          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+          background: linear-gradient(90deg, var(--accent), #c084fc, var(--mint)); opacity: 0; transition: opacity .25s;
+        }
+        .stat-card:hover::after { opacity: 1; }
+        .stat-icon {
+          width: 36px; height: 36px; border-radius: var(--r-sm); display: grid; place-items: center;
+          background: var(--berry-subtle); color: var(--accent); flex-shrink: 0;
+        }
+        .stat-icon i { width: 18px; height: 18px; }
+        .stat-value { font-size: 1.45rem; font-weight: 800; font-family: var(--font-mono); letter-spacing: -.5px; line-height: 1.1; }
+        .stat-label { font-size: .78rem; color: var(--txt-2); font-weight: 500; margin-top: 2px; }
+
+        .card {
+          background: var(--bg-surface); border: 1px solid var(--brd-subtle); border-radius: var(--r-lg);
+          overflow: hidden; box-shadow: var(--shadow-card); margin-bottom: var(--sp-5); transition: background .3s;
+        }
+        .card-header {
+          padding: var(--sp-4) var(--sp-5); display: flex; align-items: center; justify-content: space-between;
+          border-bottom: 1px solid var(--brd-subtle); background: var(--bg-elevated);
+        }
+        .card-header h2 { font-size: .95rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+
+        /* ==========================================================================
+           5. DATA TABLES & FILTERS
+           ========================================================================== */
+        .filters { padding: var(--sp-3) var(--sp-5); background: var(--bg-surface); display: flex; gap: var(--sp-2); border-bottom: 1px solid var(--brd-subtle); }
+        .table-container { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: .88rem; }
+        th {
+          padding: 10px 18px; color: var(--txt-3); font-weight: 700; text-transform: uppercase;
+          font-size: .68rem; letter-spacing: .8px; border-bottom: 1px solid var(--brd-default); background: var(--bg-elevated);
+        }
+        td { padding: 13px 18px; border-bottom: 1px solid var(--brd-subtle); color: var(--txt-1); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--bg-hover); }
+
+        /* ==========================================================================
+           6. BUTTONS & CONTROLS
+           ========================================================================== */
+        .btn {
+          display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+          padding: 8px 16px; border-radius: var(--r-sm); font-size: .82rem; font-weight: 600;
+          font-family: var(--font-display); cursor: pointer; transition: all .15s; border: 1px solid transparent;
+        }
+        .btn i { width: 14px; height: 14px; }
+        .btn:active { transform: scale(.97); }
+        .btn-primary {
+          background: linear-gradient(135deg, var(--accent-hover), var(--accent)); color: #fff;
+          box-shadow: 0 2px 8px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.12);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 18px var(--accent-glow); transform: translateY(-1px); }
+        .btn-small { padding: var(--sp-1) var(--sp-3); font-size: .75rem; }
+        .btn-logout { background: var(--rose-subtle); color: var(--rose); border-color: rgba(251,113,133,0.15); }
+        .btn-logout:hover { background: rgba(251,113,133,0.2); }
+        .btn-full { width: 100%; padding: 12px; }
+
+        /* ==========================================================================
+           7. FORMS & INPUTS
+           ========================================================================== */
+        .form-group { margin-bottom: var(--sp-4); text-align: left; }
+        .form-group label { display: block; font-size: .78rem; font-weight: 600; color: var(--txt-2); margin-bottom: 6px; }
+        .form-group input, .form-group select, .form-group textarea {
+          width: 100%; padding: 10px var(--sp-4); background: var(--bg-input); border: 1px solid var(--brd-default);
+          border-radius: var(--r-sm); color: var(--txt-1); font-size: .88rem; font-family: var(--font-display);
+          outline: none; transition: all .15s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+          border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .input-select { cursor: pointer; }
+        .error-msg { color: var(--rose); font-size: .82rem; margin-top: 10px; }
+
+        /* ==========================================================================
+           8. MODAL WINDOWS
+           ========================================================================== */
+        .modal {
+          position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center;
+          background: var(--shadow-overlay); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+          animation: modalBgFade .3s var(--ease-out);
+        }
+        @keyframes modalBgFade { from { opacity:0; } to { opacity:1; } }
+        .modal-content {
+          width: 500px; max-width: 94vw; background: var(--bg-surface); border: 1px solid var(--brd-strong);
+          border-radius: var(--r-lg); box-shadow: var(--shadow-l); overflow: hidden;
+          animation: modalScaleUp .35s var(--ease-spring);
+        }
+        @keyframes modalScaleUp { from { transform: scale(0.94) translateY(10px); opacity:0; } to { transform: scale(1) translateY(0); opacity:1; } }
+        .modal-header {
+          padding: var(--sp-4) var(--sp-5); display: flex; align-items: center; justify-content: space-between;
+          border-bottom: 1px solid var(--brd-subtle); background: var(--bg-elevated);
+        }
+        .modal-header h2 { font-size: 1rem; font-weight: 700; }
+        .btn-close {
+          background: none; border: none; color: var(--txt-3); cursor: pointer; font-size: 1.1rem;
+          transition: color .15s; width: 28px; height: 28px; display: grid; place-items: center;
+        }
+        .btn-close:hover { color: var(--txt-1); }
+        .modal-body { padding: var(--sp-5); max-height: 80vh; overflow-y: auto; }
+
+        /* ==========================================================================
+           9. CUSTOM PILL BADGES
+           ========================================================================== */
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: .72rem; font-weight: 600; }
+        .badge::before { content:''; width: 5px; height: 5px; border-radius: 50%; }
+        .badge-success { background: var(--mint-subtle); color: var(--mint); }
+        .badge-success::before { background: var(--mint); }
+        .badge-danger { background: var(--rose-subtle); color: var(--rose); }
+        .badge-danger::before { background: var(--rose); }
+        .badge-warning { background: var(--amber-subtle); color: var(--amber); }
+        .badge-warning::before { background: var(--amber); animation: pulse 2s infinite; }
+        .badge-info { background: var(--berry-subtle); color: var(--accent); }
+        .badge-info::before { background: var(--accent); }
+
+        .theme-toggle-btn {
+          width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--brd-default);
+          background: var(--bg-elevated); color: var(--txt-2); display: grid; place-items: center;
+          cursor: pointer; transition: all .15s;
+        }
+        .theme-toggle-btn:hover { background: var(--bg-hover); color: var(--amber); border-color: var(--brd-strong); }
+        .theme-toggle-btn i { width: 16px; height: 16px; }
+
+        @media (max-width: 1200px) {
+          .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+          .btn-menu { display: block; }
+          #sidebar { transform: translateX(-100%); }
+          #sidebar.open { transform: translateX(0); }
+          .main-content { margin-left: 0; }
+          .admin-header { padding: 0 var(--sp-5); }
+          .stats-grid { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
+
+    <!-- ============ AUTHORIZATION SCREEN ============ -->
     <div id="login-screen" class="login-screen">
         <div class="login-card">
-            <div class="login-logo">🔐</div>
-            <h1>CryptoSwaap Admin</h1>
+            <button class="theme-toggle-btn" onclick="toggleTheme()" style="position: absolute; top: var(--sp-4); right: var(--sp-4);"><i data-lucide="sun"></i></button>
+            <div class="login-logo"><i data-lucide="shield-check"></i></div>
+            <h1>blueberry admin</h1>
             <form id="login-form">
-                <div class="form-group"><label>Логин</label><input type="text" id="login-username" placeholder="admin" required></div>
-                <div class="form-group"><label>Пароль</label><input type="password" id="login-password" required></div>
-                <div class="form-group" id="2fa-group" style="display:none;"><label>Код 2FA</label><input type="text" id="login-2fa" placeholder="000000" maxlength="6"></div>
-                <button type="submit" class="btn btn-primary btn-full">Войти</button>
+                <div class="form-group">
+                    <label>Логин администратора</label>
+                    <input type="text" id="login-username" placeholder="admin" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Пароль</label>
+                    <input type="password" id="login-password" required autocomplete="current-password">
+                </div>
+                <div class="form-group" id="2fa-group" style="display:none;">
+                    <label>Код Blueberry 2FA Shield</label>
+                    <input type="text" id="login-2fa" placeholder="000000" maxlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary btn-full">Войти в панель →</button>
                 <div id="login-error" class="error-msg" style="display:none;"></div>
             </form>
         </div>
     </div>
 
-    <div id="admin-dashboard" style="display:none;">
+    <!-- ============ MAIN ADMIN APP ============ -->
+    <div id="admin-dashboard" class="hidden">
+        
+        <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header"><span class="sidebar-logo">💱</span><span class="sidebar-title">CryptoSwaap</span></div>
+            <div class="sidebar-header">
+                <div class="sidebar-logo"><i data-lucide="zap"></i></div>
+                <span class="sidebar-title">blueberry</span>
+            </div>
             <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" data-page="dashboard">📊 Дашборд</a>
-                <a href="#" class="nav-item" data-page="verifications">📋 Верификации</a>
-                <a href="#" class="nav-item" data-page="orders">📦 Ордера</a>
-                <a href="#" class="nav-item" data-page="appeals">⚠️ Апелляции</a>
-                <a href="#" class="nav-item" data-page="deposits">💰 Депозиты</a>
-                <a href="#" class="nav-item" data-page="withdrawals">💸 Выводы</a>
-                <a href="#" class="nav-item" data-page="users">👥 Пользователи</a>
-                <a href="#" class="nav-item" data-page="admins">🔑 Админы</a>
-                <a href="#" class="nav-item" data-page="settings">⚙️ Настройки</a>
-                <a href="#" class="nav-item" data-page="security">🔐 Безопасность</a>
+                <a href="#" class="nav-item active" data-page="dashboard"><i data-lucide="layout-dashboard"></i> Дашборд</a>
+                <a href="#" class="nav-item" data-page="verifications"><i data-lucide="clipboard-check"></i> Верификации</a>
+                <a href="#" class="nav-item" data-page="orders"><i data-lucide="receipt"></i> Ордера</a>
+                <a href="#" class="nav-item" data-page="appeals"><i data-lucide="gavel"></i> Апелляции</a>
+                <a href="#" class="nav-item" data-page="deposits"><i data-lucide="landmark"></i> Депозиты</a>
+                <a href="#" class="nav-item" data-page="withdrawals"><i data-lucide="banknote"></i> Выводы</a>
+                <a href="#" class="nav-item" data-page="users"><i data-lucide="users"></i> Трейдеры</a>
+                <a href="#" class="nav-item" data-page="admins"><i data-lucide="key"></i> Админы</a>
+                <a href="#" class="nav-item" data-page="settings"><i data-lucide="settings"></i> Настройки</a>
+                <a href="#" class="nav-item" data-page="security"><i data-lucide="lock"></i> Безопасность</a>
             </nav>
-            <div class="sidebar-footer"><button class="btn btn-logout" id="btn-logout">Выйти</button></div>
+            <div class="sidebar-footer">
+                <button class="btn btn-logout btn-full" id="btn-logout"><i data-lucide="log-out"></i> Выйти</button>
+            </div>
         </aside>
 
+        <!-- MAIN LAYOUT -->
         <main class="main-content">
             <header class="admin-header">
-                <button class="btn-menu" id="btn-menu">☰</button>
-                <h1 id="page-title">Дашборд</h1>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button class="btn-menu" id="btn-menu"><i data-lucide="menu"></i></button>
+                    <h1 id="page-title">Дашборд</h1>
+                </div>
                 <div class="header-right">
-                    <button class="btn-notification" id="btn-notifications">🔔 <span id="notif-count" class="notif-badge" style="display:none;">0</span></button>
+                    <span class="topbar-clock" id="admin-clock"></span>
+                    <button class="theme-toggle-btn" onclick="toggleTheme()"><i data-lucide="sun" id="theme-btn-icon"></i></button>
+                    <button class="btn-notification" id="btn-notifications">
+                        <i data-lucide="bell"></i>
+                        <span id="notif-count" class="notif-badge" style="display:none;">0</span>
+                    </button>
                 </div>
             </header>
 
             <div class="content">
+                
                 <!-- DASHBOARD -->
                 <div id="page-dashboard" class="page active">
                     <div class="stats-grid">
-                        <div class="stat-card"><div class="stat-icon">👥</div><div><div class="stat-value" id="stat-users">0</div><div class="stat-label">Пользователей</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">🟢</div><div><div class="stat-value" id="stat-online">0</div><div class="stat-label">Онлайн</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">✅</div><div><div class="stat-value" id="stat-verified">0</div><div class="stat-label">Верифицировано</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">📋</div><div><div class="stat-value" id="stat-pending-ver">0</div><div class="stat-label">Верификаций ожидают</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">📦</div><div><div class="stat-value" id="stat-active-orders">0</div><div class="stat-label">Активных ордеров</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">⚠️</div><div><div class="stat-value" id="stat-pending-appeals">0</div><div class="stat-label">Апелляций</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">💰</div><div><div class="stat-value" id="stat-pending-dep">0</div><div class="stat-label">Депозитов ожидают</div></div></div>
-                        <div class="stat-card"><div class="stat-icon">💸</div><div><div class="stat-value" id="stat-pending-wd">0</div><div class="stat-label">Выводов ожидают</div></div></div>
+                        <div class="stat-card"><div class="stat-icon"><i data-lucide="users"></i></div><div><div class="stat-value" id="stat-users">0</div><div class="stat-label">Пользователей</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--mint);"><i data-lucide="activity"></i></div><div><div class="stat-value" id="stat-online">0</div><div class="stat-label">Онлайн</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--mint);"><i data-lucide="shield-check"></i></div><div><div class="stat-value" id="stat-verified">0</div><div class="stat-label">Верифицировано</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--amber);"><i data-lucide="file-warning"></i></div><div><div class="stat-value" id="stat-pending-ver">0</div><div class="stat-label">Верификаций ждут</div></div></div>
+                        <div class="stat-card"><div class="stat-icon"><i data-lucide="arrow-left-right"></i></div><div><div class="stat-value" id="stat-active-orders">0</div><div class="stat-label">Активных ордеров</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--rose);"><i data-lucide="gavel"></i></div><div><div class="stat-value" id="stat-pending-appeals">0</div><div class="stat-label">Апелляций</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--accent);"><i data-lucide="arrow-down-left"></i></div><div><div class="stat-value" id="stat-pending-dep">0</div><div class="stat-label">Депозитов ждут</div></div></div>
+                        <div class="stat-card"><div class="stat-icon" style="color:var(--rose);"><i data-lucide="arrow-up-right"></i></div><div><div class="stat-value" id="stat-pending-wd">0</div><div class="stat-label">Выводов ждут</div></div></div>
                     </div>
                     <div class="card" id="notifications-card" style="display:none;">
-                        <div class="card-header"><h2>🔔 Уведомления</h2><button class="btn btn-small" id="btn-mark-read">Прочитать все</button></div>
+                        <div class="card-header"><h2>🔔 Оповещения системы</h2><button class="btn btn-small btn-primary" id="btn-mark-read">Прочитать все</button></div>
                         <div id="notifications-list"></div>
                     </div>
                     <div class="card">
-                        <div class="card-header"><h2>Последние депозиты</h2></div>
-                        <div class="table-container"><table><thead><tr><th>ID</th><th>Пользователь</th><th>USDT</th><th>RUB</th><th>Статус</th><th>Дата</th></tr></thead><tbody id="recent-body"></tbody></table></div>
+                        <div class="card-header"><h2>Последние депозиты в казначейство</h2></div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>ID</th><th>Пользователь</th><th>USDT</th><th>RUB</th><th>Статус</th><th>Дата</th></tr>
+                                </thead>
+                                <tbody id="recent-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- VERIFICATIONS -->
                 <div id="page-verifications" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>📋 Верификации</h2></div>
-                        <div class="filters"><select id="filter-ver-status"><option value="">Все</option><option value="pending">Ожидают</option><option value="approved">Одобренные</option><option value="rejected">Отклонённые</option></select></div>
+                        <div class="card-header"><h2>📋 Модерация верификаций</h2></div>
+                        <div class="filters">
+                            <select id="filter-ver-status" class="input-select">
+                                <option value="">Все статусы</option>
+                                <option value="pending">Ожидают проверки</option>
+                                <option value="approved">Одобренные</option>
+                                <option value="rejected">Отклонённые</option>
+                            </select>
+                        </div>
                         <div id="verifications-list"></div>
                     </div>
                 </div>
@@ -83,111 +438,200 @@
                 <!-- ORDERS -->
                 <div id="page-orders" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>📦 Ордера</h2><button class="btn btn-primary" id="btn-create-order">➕ Создать ордер</button></div>
-                        <div class="filters"><select id="filter-order-status"><option value="">Все</option><option value="active">Активные</option><option value="completed">Выполненные</option><option value="expired">Истёкшие</option><option value="failed">Неуспешные</option></select></div>
-                        <div class="table-container"><table><thead><tr><th>Номер</th><th>Пользователь</th><th>Сумма ₽</th><th>Статус</th><th>Действия</th><th>Дата</th></tr></thead><tbody id="orders-body"></tbody></table></div>
+                        <div class="card-header">
+                            <h2>📦 Книга ордеров системы</h2>
+                            <button class="btn btn-primary" id="btn-create-order"><i data-lucide="plus-circle"></i> Создать ордер</button>
+                        </div>
+                        <div class="filters">
+                            <select id="filter-order-status" class="input-select">
+                                <option value="">Все статусы</option>
+                                <option value="active">Активные (В работе)</option>
+                                <option value="completed">Выполненные</option>
+                                <option value="expired">Истёкшие</option>
+                                <option value="failed">Отклоненные</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Номер</th><th>Пользователь</th><th>Сумма в рублях</th><th>Статус</th><th>Действия</th><th>Дата создания</th></tr>
+                                </thead>
+                                <tbody id="orders-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- APPEALS -->
                 <div id="page-appeals" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>⚠️ Апелляции</h2><button class="btn btn-primary" id="btn-create-appeal">➕ Создать апелляцию</button></div>
-                        <div class="filters"><select id="filter-appeal-status"><option value="">Все</option><option value="pending">Ожидают</option><option value="resolved">Решены</option><option value="rejected">Отклонены</option></select></div>
-                        <div class="table-container"><table><thead><tr><th>Номер</th><th>Пользователь</th><th>Ордер</th><th>Сумма ₽</th><th>Статус</th><th>Действия</th></tr></thead><tbody id="appeals-body"></tbody></table></div>
+                        <div class="card-header">
+                            <h2>⚠️ Разрешение споров и апелляций</h2>
+                            <button class="btn btn-primary" id="btn-create-appeal"><i data-lucide="plus-circle"></i> Создать апелляцию</button>
+                        </div>
+                        <div class="filters">
+                            <select id="filter-appeal-status" class="input-select">
+                                <option value="">Все споры</option>
+                                <option value="pending">Ожидают арбитража</option>
+                                <option value="resolved">Решенные (Выплата)</option>
+                                <option value="rejected">Отклоненные (Разморозка)</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>Номер апелляции</th><th>Пользователь</th><th>Сделка</th><th>Сумма</th><th>Статус</th><th>Действия арбитра</th></tr>
+                                </thead>
+                                <tbody id="appeals-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- DEPOSITS -->
                 <div id="page-deposits" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>💰 Депозиты</h2></div>
-                        <div class="filters"><select id="filter-deposit-status"><option value="">Все</option><option value="pending">Ожидают</option><option value="confirmed">Подтверждённые</option><option value="rejected">Отклонённые</option></select></div>
-                        <div class="table-container"><table><thead><tr><th>ID</th><th>Пользователь</th><th>USDT</th><th>RUB</th><th>Сеть</th><th>Хеш</th><th>Статус</th><th>Действия</th></tr></thead><tbody id="deposits-body"></tbody></table></div>
+                        <div class="card-header"><h2>💰 Депозиты в криптовалюте</h2></div>
+                        <div class="filters">
+                            <select id="filter-deposit-status" class="input-select">
+                                <option value="">Все пополнения</option>
+                                <option value="pending">Ожидают зачисления</option>
+                                <option value="confirmed">Зачисленные</option>
+                                <option value="rejected">Отклонённые</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>ID</th><th>Пользователь</th><th>USDT</th><th>RUB</th><th>Сеть</th><th>Транзакция (Hash)</th><th>Статус</th><th>Действия</th></tr>
+                                </thead>
+                                <tbody id="deposits-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- WITHDRAWALS -->
                 <div id="page-withdrawals" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>💸 Выводы</h2></div>
-                        <div class="filters"><select id="filter-withdrawal-status"><option value="">Все</option><option value="pending">Ожидают</option><option value="completed">Выполненные</option><option value="rejected">Отклонённые</option></select></div>
-                        <div class="table-container"><table><thead><tr><th>ID</th><th>Пользователь</th><th>Сумма ₽</th><th>Банк</th><th>ФИО</th><th>Телефон</th><th>Статус</th><th>Действия</th></tr></thead><tbody id="withdrawals-body"></tbody></table></div>
+                        <div class="card-header"><h2>💸 Заявки на выплату фиата</h2></div>
+                        <div class="filters">
+                            <select id="filter-withdrawal-status" class="input-select">
+                                <option value="">Все выплаты</option>
+                                <option value="pending">Ожидают перевода</option>
+                                <option value="completed">Выплаченные</option>
+                                <option value="rejected">Отклонённые</option>
+                            </select>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>ID</th><th>Пользователь</th><th>Сумма в рублях</th><th>Банк</th><th>Получатель</th><th>Телефон/СБП</th><th>Статус</th><th>Действия</th></tr>
+                                </thead>
+                                <tbody id="withdrawals-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- USERS -->
                 <div id="page-users" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>👥 Пользователи</h2><button class="btn btn-primary" id="btn-create-user">➕ Создать</button></div>
-                        <div class="table-container"><table><thead><tr><th>ID</th><th>Логин</th><th>Баланс ₽</th><th>Онлайн</th><th>Верификация</th><th>2FA</th><th>Статус</th><th>Действия</th></tr></thead><tbody id="users-body"></tbody></table></div>
+                        <div class="card-header">
+                            <h2>👥 Реестр трейдеров-партнеров</h2>
+                            <button class="btn btn-primary" id="btn-create-user"><i data-lucide="user-plus"></i> Создать партнера</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>ID</th><th>Логин</th><th>Доступная казна</th><th>Онлайн</th><th>Верификация</th><th>2FA защита</th><th>Статус</th><th>Действия управления</th></tr>
+                                </thead>
+                                <tbody id="users-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- ADMINS -->
                 <div id="page-admins" class="page">
                     <div class="card">
-                        <div class="card-header"><h2>🔑 Администраторы</h2><button class="btn btn-primary" id="btn-create-admin">➕ Создать админа</button></div>
-                        <div class="table-container"><table><thead><tr><th>ID</th><th>Логин</th><th>2FA</th><th>Суперадмин</th><th>Действия</th></tr></thead><tbody id="admins-body"></tbody></table></div>
+                        <div class="card-header">
+                            <h2>🔑 Управление администраторами</h2>
+                            <button class="btn btn-primary" id="btn-create-admin"><i data-lucide="key-round"></i> Создать админа</button>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>ID</th><th>Логин</th><th>2FA</th><th>Суперадмин</th><th>Управление</th></tr>
+                                </thead>
+                                <tbody id="admins-body"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
                 <!-- SETTINGS -->
                 <div id="page-settings" class="page">
-                    <div class="card">
-                        <h2>Настройки</h2>
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2 class="sec-title" style="margin-bottom: 20px;"><i data-lucide="sliders" style="display:inline-block; vertical-align:middle; width: 16px;"></i> Системные настройки Blueberry</h2>
                         <form id="settings-form">
-                            <div class="form-group"><label>Название</label><input type="text" id="s-app_name"></div>
-                            <div class="form-group"><label>Базовый курс</label><input type="number" id="s-base_rate" step="0.01"></div>
-                            <div class="form-group"><label>Ставка (%)</label><input type="number" id="s-markup_percent" step="0.1"></div>
-                            <div class="form-group"><label>Мин. пополнение (USDT)</label><input type="number" id="s-min_deposit_usdt"></div>
-                            <div class="form-group"><label>Мин. вывод (₽)</label><input type="number" id="s-min_withdrawal_rub"></div>
-                            <div class="form-group"><label>Таймер ордера (мин)</label><input type="number" id="s-order_timer_minutes"></div>
-                            <div class="form-group"><label>Поддержка</label><input type="text" id="s-support_contact"></div>
-                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <div class="form-group"><label>Название сервиса</label><input type="text" id="s-app_name"></div>
+                            <div class="form-group"><label>Базовый курс валюты (USDT/RUB)</label><input type="number" id="s-base_rate" step="0.01"></div>
+                            <div class="form-group"><label>Размер ставки профита партнера (%)</label><input type="number" id="s-markup_percent" step="0.1"></div>
+                            <div class="form-group"><label>Минимальный депозит (USDT)</label><input type="number" id="s-min_deposit_usdt"></div>
+                            <div class="form-group"><label>Минимальный вывод прибыли (₽)</label><input type="number" id="s-min_withdrawal_rub"></div>
+                            <div class="form-group"><label>Таймер на оплату ордера (минут)</label><input type="number" id="s-order_timer_minutes"></div>
+                            <div class="form-group"><label>Контакт поддержки Blueberry</label><input type="text" id="s-support_contact"></div>
+                            <button type="submit" class="btn btn-primary">Сохранить системную конфигурацию</button>
                         </form>
                     </div>
-                    <div class="card" style="margin-top:20px;">
-                        <h2>Итоговый курс</h2>
-                        <p style="font-size:32px;font-weight:800;color:var(--primary);margin:12px 0;" id="final-rate">--</p>
+                    
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2>Расчётный итоговый курс обмена</h2>
+                        <p style="font-size: 32px; font-weight: 800; color: var(--accent); margin: 12px 0; font-family: var(--font-mono);" id="final-rate">--</p>
                     </div>
-                    <div class="card" style="margin-top:20px;">
-                        <h2>Контакты поддержки</h2>
-                        <div id="support-contacts-list"></div>
-                        <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-contacts">Сохранить контакты</button>
+                    
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2>Контакты службы поддержки</h2>
+                        <div id="support-contacts-list" style="margin-top:12px;"></div>
+                        <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-contacts"><i data-lucide="save"></i> Сохранить список контактов</button>
                     </div>
-                    <div class="card" style="margin-top:20px;">
-                        <h2>Сети</h2>
-                        <div id="networks-list"></div>
-                        <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-networks">Сохранить сети</button>
+                    
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2>Платежные крипто-сети</h2>
+                        <div id="networks-list" style="margin-top:12px;"></div>
+                        <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-networks"><i data-lucide="save"></i> Зафиксировать адреса сетей</button>
                     </div>
-                    <div class="card" style="margin-top:20px;">
-                        <h2>Экспорт данных</h2>
-                        <div style="display:flex;gap:12px;">
-                            <a href="/api/admin/export/users" class="btn btn-primary" download>📥 Экспорт пользователей</a>
-                            <a href="/api/admin/export/transactions" class="btn btn-primary" download>📥 Экспорт транзакций</a>
+                    
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2>Экспорт финансовой отчетности</h2>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 10px;">
+                            <a href="/api/admin/export/users" class="btn btn-primary" download><i data-lucide="download"></i> Скачать базу трейдеров (XLS)</a>
+                            <a href="/api/admin/export/transactions" class="btn btn-primary" download><i data-lucide="download"></i> Скачать выписку транзакций</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- SECURITY -->
                 <div id="page-security" class="page">
-                    <div class="card">
-                        <h2>Смена логина и пароля</h2>
-                        <div class="form-group"><label>Текущий пароль</label><input type="password" id="admin-curr-pass"></div>
-                        <div class="form-group"><label>Новый логин</label><input type="text" id="admin-new-user" placeholder="Оставьте пустым"></div>
-                        <div class="form-group"><label>Новый пароль</label><input type="password" id="admin-new-pass" placeholder="Оставьте пустым"></div>
-                        <button class="btn btn-primary" id="btn-change-creds">Сохранить</button>
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2 class="sec-title" style="margin-bottom: 20px;">Конфиденциальность: данные доступа</h2>
+                        <div class="form-group"><label>Текущий пароль панели</label><input type="password" id="admin-curr-pass" autocomplete="current-password"></div>
+                        <div class="form-group"><label>Новый логин админа (необязательно)</label><input type="text" id="admin-new-user" placeholder="Оставьте пустым, если не меняется" autocomplete="username"></div>
+                        <div class="form-group"><label>Новый пароль админа (необязательно)</label><input type="password" id="admin-new-pass" placeholder="Оставьте пустым, если не меняется" autocomplete="new-password"></div>
+                        <button class="btn btn-primary" id="btn-change-creds">Сохранить новые учетные данные</button>
                     </div>
-                    <div class="card" style="margin-top:20px;">
-                        <h2>2FA</h2>
-                        <p id="admin-2fa-status" style="margin-bottom:16px;">Проверка...</p>
-                        <button class="btn btn-primary" id="btn-setup-2fa">Настроить 2FA</button>
-                        <div id="admin-2fa-setup" style="display:none;margin-top:20px;">
-                            <div class="qr-container"><img id="admin-qr" src=""></div>
-                            <div class="secret-key"><code id="admin-secret">--</code></div>
-                            <div class="form-group"><input type="text" id="admin-totp-code" placeholder="Код" maxlength="6"></div>
-                            <button class="btn btn-primary" id="btn-verify-admin-2fa">Подтвердить</button>
+                    
+                    <div class="card" style="padding: var(--sp-6);">
+                        <h2>Двухфакторная защита Blueberry Admin Shield</h2>
+                        <p id="admin-2fa-status" style="margin: 12px 0 16px; font-weight: 600; color: var(--txt-2);">Проверка статуса подключения...</p>
+                        <button class="btn btn-primary" id="btn-setup-2fa"><i data-lucide="shield"></i> Сгенерировать защитный ключ</button>
+                        
+                        <div id="admin-2fa-setup" class="hidden" style="margin-top:20px; text-align: center;">
+                            <div style="padding: 12px; background: #fff; border-radius: var(--r-md); width: fit-content; margin: 0 auto 12px;"><img id="admin-qr" src="" alt="QR" style="display:block;"></div>
+                            <div class="secret-key" style="margin-bottom: 12px;"><code id="admin-secret" style="font-family: var(--font-mono); color: var(--accent);">--</code></div>
+                            <div class="form-group" style="max-width: 200px; margin: 0 auto 12px;"><input type="text" id="admin-totp-code" placeholder="Введите 6 цифр" maxlength="6" style="text-align: center;"></div>
+                            <button class="btn btn-primary" id="btn-verify-admin-2fa">Активировать защиту</button>
                         </div>
                     </div>
                 </div>
@@ -195,21 +639,217 @@
         </main>
     </div>
 
-    <!-- MODALS -->
-    <div id="create-order-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Создать ордер</h2><button class="btn-close" onclick="closeModal('create-order-modal')">✕</button></div><div class="modal-body"><div class="form-group"><label>Пользователь</label><select id="order-user" class="input-select"></select></div><div id="order-available-info" style="font-size:13px;color:#10b981;margin-bottom:12px;font-weight:600;"></div><div class="form-group"><label>Номер ордера</label><input type="text" id="order-number" placeholder="Автогенерация"></div><div class="form-group"><label>Сумма (₽)</label><input type="number" id="order-amount" placeholder="0.00"></div><button class="btn btn-primary btn-full" id="btn-confirm-create-order">Создать</button></div></div></div>
+    <!-- ==========================================================================
+       10. MODAL WINDOWS
+       ========================================================================== -->
+    
+    <!-- CREATE ORDER -->
+    <div id="create-order-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать новый ордер обмена</h2>
+                <button class="btn-close" onclick="closeModal('create-order-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Назначить на партнера</label>
+                    <select id="order-user" class="input-select"></select>
+                </div>
+                <div id="order-available-info" style="font-size:13px; color:var(--mint); margin-bottom:12px; font-weight:700;"></div>
+                <div class="form-group">
+                    <label>Номер ордера (или автогенерация)</label>
+                    <input type="text" id="order-number" placeholder="Например: ORD-847291">
+                </div>
+                <div class="form-group">
+                    <label>Сумма к поступлению (₽)</label>
+                    <input type="number" id="order-amount" placeholder="0.00" step="0.01">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-create-order">Сформировать и отправить ордер</button>
+            </div>
+        </div>
+    </div>
 
-    <div id="create-appeal-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Создать апелляцию</h2><button class="btn-close" onclick="closeModal('create-appeal-modal')">✕</button></div><div class="modal-body"><div class="form-group"><label>Пользователь (из списка)</label><select id="appeal-user" class="input-select"><option value="">Выберите</option></select></div><div class="form-group"><label>ИЛИ Внутренний ID (CS-XXXXX)</label><input type="text" id="appeal-internal-id" placeholder="CS-12345"></div><div class="form-group"><label>Номер апелляции</label><input type="text" id="appeal-number" placeholder="Автогенерация"></div><div class="form-group"><label>Номер ордера</label><input type="text" id="appeal-order" placeholder="ORD-XXXXX"></div><div class="form-group"><label>Сумма (₽)</label><input type="number" id="appeal-amount"></div><div class="form-group"><label>Описание</label><input type="text" id="appeal-description"></div><div class="form-group"><label>Чек (необязательно)</label><input type="file" id="appeal-receipt" accept="image/*"></div><button class="btn btn-primary btn-full" id="btn-confirm-create-appeal">Создать</button></div></div></div>
+    <!-- CREATE APPEAL -->
+    <div id="create-appeal-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Инициировать диспут (Апелляция)</h2>
+                <button class="btn-close" onclick="closeModal('create-appeal-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Выбрать партнера из реестра</label>
+                    <select id="appeal-user" class="input-select">
+                        <option value="">Выберите получателя</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ИЛИ ввести ручной ID партнера (CS-XXXXX)</label>
+                    <input type="text" id="appeal-internal-id" placeholder="CS-12345">
+                </div>
+                <div class="form-group">
+                    <label>Номер апелляции</label>
+                    <input type="text" id="appeal-number" placeholder="Автогенерация Blueberry">
+                </div>
+                <div class="form-group">
+                    <label>Привязать к номеру сделки</label>
+                    <input type="text" id="appeal-order" placeholder="ORD-XXXXX">
+                </div>
+                <div class="form-group">
+                    <label>Заблокировать сумму (₽)</label>
+                    <input type="number" id="appeal-amount" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>Причина спора / Описание проблемы</label>
+                    <input type="text" id="appeal-description" placeholder="Средства не зачислены на карту">
+                </div>
+                <div class="form-group">
+                    <label>Фотография чека из банка</label>
+                    <input type="file" id="appeal-receipt" accept="image/*">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-create-appeal">Открыть спор на арбитраж</button>
+            </div>
+        </div>
+    </div>
 
-    <div id="send-notification-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Отправить уведомление</h2><button class="btn-close" onclick="closeModal('send-notification-modal')">✕</button></div><div class="modal-body"><div class="form-group"><label>Получатель</label><select id="notif-user" class="input-select"><option value="all">Все</option></select></div><div class="form-group"><label>Тип</label><select id="notif-type" class="input-select"><option value="info">Информация</option><option value="success">Успех</option><option value="error">Ошибка</option></select></div><div class="form-group"><label>Сообщение</label><textarea id="notif-message" rows="4" style="width:100%;padding:12px;border:2px solid var(--gray-200);border-radius:12px;font-size:14px;"></textarea></div><button class="btn btn-primary btn-full" id="btn-confirm-send-notification">Отправить</button></div></div></div>
+    <!-- SEND NOTIFICATION -->
+    <div id="send-notification-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Рассылка уведомлений трейдерам</h2>
+                <button class="btn-close" onclick="closeModal('send-notification-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Адресат сообщения</label>
+                    <select id="notif-user" class="input-select">
+                        <option value="all">Глобальная рассылка (Всем)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Приоритет сообщения</label>
+                    <select id="notif-type" class="input-select">
+                        <option value="info">Информационный (Синий)</option>
+                        <option value="success">Успешная операция (Зеленый)</option>
+                        <option value="error">Внимание / Ошибка (Красный)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Текст сообщения</label>
+                    <textarea id="notif-message" rows="4" placeholder="Введите текст сообщения..."></textarea>
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-send-notification">Отправить сообщение</button>
+            </div>
+        </div>
+    </div>
 
-    <div id="create-user-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Создать пользователя</h2><button class="btn-close" onclick="closeModal('create-user-modal')">✕</button></div><div class="modal-body"><p style="margin-bottom:16px;color:var(--gray-500);">Оставьте пустым для автогенерации</p><div class="form-group"><label>Логин</label><input type="text" id="new-user-username"></div><div class="form-group"><label>Пароль</label><input type="text" id="new-user-password"></div><button class="btn btn-primary btn-full" id="btn-confirm-create">Создать</button><div id="created-user-info" style="display:none;margin-top:20px;padding:16px;background:var(--gray-50);border-radius:12px;border:1px solid var(--gray-200);"><h3 style="margin-bottom:12px;">✅ Создан!</h3><p><strong>Логин:</strong> <span id="created-username"></span></p><p><strong>Пароль:</strong> <span id="created-password"></span></p><button class="btn btn-small btn-primary" style="margin-top:12px;" onclick="copyCredentials()">📋 Скопировать</button></div></div></div></div>
+    <!-- CREATE USER -->
+    <div id="create-user-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить нового партнера</h2>
+                <button class="btn-close" onclick="closeModal('create-user-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:16px; color:var(--txt-3); font-size: 0.9rem;">Blueberry автоматически сгенерирует учетные данные, если оставить поля пустыми.</p>
+                <div class="form-group">
+                    <label>Желаемый логин</label>
+                    <input type="text" id="new-user-username">
+                </div>
+                <div class="form-group">
+                    <label>Желаемый пароль</label>
+                    <input type="text" id="new-user-password">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-create">Создать аккаунт партнера</button>
+                
+                <div id="created-user-info" class="hidden" style="margin-top:20px; padding:16px; background:var(--bg-elevated); border-radius:var(--r-md); border:1px solid var(--brd-default);">
+                    <h3 style="margin-bottom:12px; color: var(--mint); display: flex; align-items: center; gap: 8px;"><i data-lucide="check-circle"></i> Аккаунт создан</h3>
+                    <p style="margin-bottom: 6px;"><strong>Логин:</strong> <span id="created-username" style="font-family: var(--font-mono); color: var(--accent);"></span></p>
+                    <p style="margin-bottom: 12px;"><strong>Пароль:</strong> <span id="created-password" style="font-family: var(--font-mono); color: var(--accent);"></span></p>
+                    <button class="btn btn-small btn-primary" id="btn-copy-creds" onclick="copyCredentials()"><i data-lucide="copy"></i> Скопировать реквизиты в буфер</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <div id="create-admin-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Создать админа</h2><button class="btn-close" onclick="closeModal('create-admin-modal')">✕</button></div><div class="modal-body"><div class="form-group"><label>Логин</label><input type="text" id="new-admin-username"></div><div class="form-group"><label>Пароль</label><input type="text" id="new-admin-password"></div><button class="btn btn-primary btn-full" id="btn-confirm-create-admin">Создать</button><div id="created-admin-info" style="display:none;margin-top:20px;padding:16px;background:var(--gray-50);border-radius:12px;border:1px solid var(--gray-200);"><h3 style="margin-bottom:12px;">✅ Создан!</h3><p><strong>Логин:</strong> <span id="created-admin-username"></span></p><p><strong>Пароль:</strong> <span id="created-admin-password"></span></p></div></div></div></div>
+    <!-- CREATE ADMIN -->
+    <div id="create-admin-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить администратора</h2>
+                <button class="btn-close" onclick="closeModal('create-admin-modal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Логин администратора</label>
+                    <input type="text" id="new-admin-username">
+                </div>
+                <div class="form-group">
+                    <label>Пароль доступа</label>
+                    <input type="text" id="new-admin-password">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-create-admin">Зарегистрировать администратора</button>
+                
+                <div id="created-admin-info" class="hidden" style="margin-top:20px; padding:16px; background:var(--bg-elevated); border-radius:var(--r-md); border:1px solid var(--brd-default);">
+                    <h3 style="margin-bottom:12px; color: var(--mint);"><i data-lucide="check-circle"></i> Администратор создан</h3>
+                    <p><strong>Логин:</strong> <span id="created-admin-username" style="font-family: var(--font-mono); color: var(--accent);"></span></p>
+                    <p><strong>Пароль:</strong> <span id="created-admin-password" style="font-family: var(--font-mono); color: var(--accent);"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <div id="user-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Детали</h2><button class="btn-close" onclick="closeModal('user-modal')">✕</button></div><div class="modal-body" id="user-modal-body"></div></div></div>
+    <!-- USER DETAILS MODAL -->
+    <div id="user-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h2>Досье и управление трейдером</h2>
+                <button class="btn-close" onclick="closeModal('user-modal')">✕</button>
+            </div>
+            <div class="modal-body" id="user-modal-body"></div>
+        </div>
+    </div>
 
-    <div id="verification-modal" class="modal" style="display:none;"><div class="modal-content"><div class="modal-header"><h2>Верификация</h2><button class="btn-close" onclick="closeModal('verification-modal')">✕</button></div><div class="modal-body" id="verification-modal-body"></div></div></div>
+    <!-- VERIFICATION ACTIONS MODAL -->
+    <div id="verification-modal" class="modal" style="display:none;">
+        <div class="modal-content" style="width: 550px;">
+            <div class="modal-header">
+                <h2>Контроль личности верификации</h2>
+                <button class="btn-close" onclick="closeModal('verification-modal')">✕</button>
+            </div>
+            <div class="modal-body" id="verification-modal-body"></div>
+        </div>
+    </div>
 
+    <!-- ============ SCRIPTS CONFIGURE ============ -->
+    <script>
+        // Theme config
+        function toggleTheme() {
+            const h = document.documentElement;
+            const current = h.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            h.setAttribute('data-theme', next);
+            localStorage.setItem('bb-theme-admin', next);
+            updateThemeIcons(next);
+            lucide.createIcons();
+        }
+        function updateThemeIcons(theme) {
+            document.querySelectorAll('#theme-btn-icon, .login-theme-btn i').forEach(i => {
+                i.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+            });
+        }
+        const savedTheme = localStorage.getItem('bb-theme-admin') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        updateThemeIcons(savedTheme);
+
+        // Clock admin setup
+        function tickAdminClock() {
+            const el = document.getElementById('admin-clock');
+            if (el) el.textContent = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+        setInterval(tickAdminClock, 1000);
+        tickAdminClock();
+    </script>
     <script src="/js/admin.js"></script>
 </body>
 </html>
