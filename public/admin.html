@@ -550,16 +550,26 @@ tr:hover td{background:var(--bg-hover)}
       <div id="page-settings" class="page">
         <div class="card" style="padding:var(--sp-6);">
           <h2 class="sec-title" style="margin-bottom:20px;">Системные настройки blueberry</h2>
-          <form id="settings-form">
-            <div class="form-group"><label>Название сервиса</label><input type="text" id="s-app_name"></div>
-            <div class="form-group"><label>Базовый курс (USDT/RUB)</label><input type="number" id="s-base_rate" step="0.01"></div>
-            <div class="form-group"><label>Размер ставки профита (%)</label><input type="number" id="s-markup_percent" step="0.1"></div>
-            <div class="form-group"><label>Минимальный депозит (USDT)</label><input type="number" id="s-min_deposit_usdt"></div>
-            <div class="form-group"><label>Минимальный вывод прибыли (₽)</label><input type="number" id="s-min_withdrawal_rub"></div>
-            <div class="form-group"><label>Таймер на оплату ордера (минут)</label><input type="number" id="s-order_timer_minutes"></div>
-            <div class="form-group"><label>Контакт поддержки blueberry</label><input type="text" id="s-support_contact"></div>
-            <button type="submit" class="btn btn-primary">Сохранить конфигурацию</button>
-          </form>
+          <div class="form-group">
+            <label>Базовый курс (USDT/RUB)</label>
+            <div style="display:flex;gap:8px;"><input type="number" id="s-base_rate" step="0.01" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('base_rate','s-base_rate')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
+          <div class="form-group">
+            <label>Размер ставки профита (%)</label>
+            <div style="display:flex;gap:8px;"><input type="number" id="s-markup_percent" step="0.1" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('markup_percent','s-markup_percent')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
+          <div class="form-group">
+            <label>Минимальный депозит (USDT)</label>
+            <div style="display:flex;gap:8px;"><input type="number" id="s-min_deposit_usdt" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('min_deposit_usdt','s-min_deposit_usdt')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
+          <div class="form-group">
+            <label>Минимальный вывод прибыли (₽)</label>
+            <div style="display:flex;gap:8px;"><input type="number" id="s-min_withdrawal_rub" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('min_withdrawal_rub','s-min_withdrawal_rub')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
+          <div class="form-group">
+            <label>Таймер на оплату ордера (минут)</label>
+            <div style="display:flex;gap:8px;"><input type="number" id="s-order_timer_minutes" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('order_timer_minutes','s-order_timer_minutes')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
         </div>
 
         <div class="card" style="padding:var(--sp-6);">
@@ -568,21 +578,30 @@ tr:hover td{background:var(--bg-hover)}
         </div>
 
         <div class="card" style="padding:var(--sp-6);">
-          <h2 class="sec-title">Контакты службы поддержки</h2>
-          <div id="support-contacts-list" style="margin-top:12px;"></div>
-          <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-contacts"><i data-lucide="save"></i> Сохранить список контактов</button>
+          <h2 class="sec-title">Контакт службы поддержки</h2>
+          <div class="form-group" style="margin-top:12px;">
+            <label>Ссылка на Telegram</label>
+            <div style="display:flex;gap:8px;"><input type="text" id="s-support_contact" placeholder="https://t.me/username" style="flex:1;"><button class="btn btn-small btn-primary" onclick="saveSingleSetting('support_contact','s-support_contact')"><i data-lucide="save"></i> Сохранить</button></div>
+          </div>
         </div>
 
         <div class="card" style="padding:var(--sp-6);">
           <h2 class="sec-title">Платежные крипто-сети</h2>
           <div id="networks-list" style="margin-top:12px;"></div>
-          <button class="btn btn-small btn-primary" style="margin-top:12px;" id="btn-save-networks"><i data-lucide="save"></i> Зафиксировать адреса сетей</button>
+          <div style="margin-top:16px;padding:16px;background:var(--bg-elevated);border-radius:var(--r-md);border:1px solid var(--brd-default);">
+            <h3 style="margin-bottom:12px;font-size:.9rem;font-weight:700;">Добавить новую сеть</h3>
+            <div class="form-group"><label>Монета</label><input type="text" id="new-net-coin" placeholder="USDT, BTC, ETH..."></div>
+            <div class="form-group"><label>Сеть</label><input type="text" id="new-net-id" placeholder="TRC-20, BEP-20, ERC-20..."></div>
+            <div class="form-group"><label>Название</label><input type="text" id="new-net-name" placeholder="USDT TRC-20 (Tron)"></div>
+            <div class="form-group"><label>Адрес кошелька</label><input type="text" id="new-net-wallet" placeholder="Ваш адрес кошелька"></div>
+            <button class="btn btn-primary" onclick="addNewNetwork()"><i data-lucide="plus-circle"></i> Добавить сеть</button>
+          </div>
         </div>
 
         <div class="card" style="padding:var(--sp-6);">
           <h2 class="sec-title">Экспорт финансовой отчетности</h2>
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
-            <a href="/api/admin/export/users" class="btn btn-primary" download><i data-lucide="download"></i> Скачать базу трейдеров (XLS)</a>
+            <a href="/api/admin/export/users" class="btn btn-primary" download><i data-lucide="download"></i> Скачать базу трейдеров</a>
             <a href="/api/admin/export/transactions" class="btn btn-primary" download><i data-lucide="download"></i> Скачать выписку транзакций</a>
           </div>
         </div>
