@@ -1,6 +1,6 @@
 /* ==========================================================================
-   blueberry — Admin Control Core JS
-   Full API & SSE integration | Safe DOM binding
+   blueberry — Admin Control Core JS (Full Feature Edition)
+   Credentials Viewer, Individual User Markup, Full API & SSE integration
    ========================================================================== */
 
 let currentPage = 'dashboard';
@@ -95,7 +95,7 @@ async function handleLogin(e) {
         if (data.requires_2fa) {
             document.getElementById('2fa-group').style.display = 'block';
             errEl.style.display = 'none';
-            notify('Введите 2FA код', 'info');
+            notify('Введите 2FA код blueberry', 'info');
             return;
         }
 
@@ -150,9 +150,9 @@ function showPage(page) {
     if (target) target.classList.add('active');
 
     const titles = {
-        dashboard: 'Дашборд', verifications: 'Верификации', orders: 'Ордера',
-        appeals: 'Апелляции', deposits: 'Депозиты', withdrawals: 'Выводы',
-        users: 'Пользователи', admins: 'Администраторы', settings: 'Настройки', security: 'Безопасность'
+        dashboard: 'Дашборд Blueberry', verifications: 'Модерация верификаций', orders: 'Книга ордеров',
+        appeals: 'Апелляции и споры', deposits: 'Депозиты в криптовалюте', withdrawals: 'Заявки на выплату фиата',
+        users: 'Реестр трейдеров-партнеров', admins: 'Управление администраторами', settings: 'Системные настройки', security: 'Безопасность панели'
     };
     document.getElementById('page-title').textContent = titles[page] || page;
     document.getElementById('sidebar')?.classList.remove('open');
@@ -190,7 +190,7 @@ async function loadDashboard() {
         const recent = d.recent_deposits || d.recent || [];
         if (recentBody) {
             if (!recent.length) {
-                recentBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:20px;">Нет данных</td></tr>';
+                recentBody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:20px;">Нет данных о депозитах</td></tr>';
             } else {
                 recentBody.innerHTML = recent.map(dep => `
                     <tr>
@@ -221,7 +221,7 @@ async function loadVerifications() {
         if (!container) return;
 
         if (!list.length) {
-            container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txt-3);">Заявок нет</div>';
+            container.innerHTML = '<div style="padding:24px;text-align:center;color:var(--txt-3);">Заявок на проверку нет</div>';
             return;
         }
 
@@ -229,8 +229,8 @@ async function loadVerifications() {
             <div style="padding:16px;background:var(--bg-elevated);border-radius:var(--r-md);border:1px solid var(--brd-subtle);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                 <div>
                     <div style="font-weight:700;">${v.username} <span style="font-size:.75rem;color:var(--txt-3);font-family:var(--font-mono);">ID: ${v.internal_id || v.user_id}</span></div>
-                    <div style="font-size:.85rem;color:var(--txt-2);margin-top:4px;">📞 ${v.phone || '—'} · TG: <strong>${v.telegram_link || '—'}</strong></div>
-                    <div style="font-size:.8rem;color:var(--txt-3);margin-top:2px;">${formatDate(v.created_at)}</div>
+                    <div style="font-size:.85rem;color:var(--txt-2);margin-top:4px;">📞 ${v.phone || '—'} · Telegram: <strong>${v.telegram_link || '—'}</strong></div>
+                    <div style="font-size:.8rem;color:var(--txt-3);margin-top:2px;">Подана: ${formatDate(v.created_at)}</div>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <span class="badge badge-${v.status === 'approved' ? 'success' : v.status === 'pending' ? 'warning' : 'danger'}">${v.status}</span>
@@ -253,27 +253,27 @@ async function viewVerification(id) {
 
         document.getElementById('verification-modal-body').innerHTML = `
             <div style="font-size:.95rem;margin-bottom:16px;">
-                <p><strong>Пользователь:</strong> ${v.username} (${v.internal_id || 'ID: ' + v.user_id})</p>
+                <p><strong>Трейдер:</strong> ${v.username} (${v.internal_id || 'ID: ' + v.user_id})</p>
                 <p><strong>Телефон:</strong> ${v.phone || '—'}</p>
                 <p><strong>Telegram:</strong> ${v.telegram_link || '—'}</p>
                 <p><strong>Соцсети:</strong> ${v.social_links || '—'}</p>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-                ${v.selfie_url ? `<div><label class="fl">Селфи</label><img src="${v.selfie_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
-                ${v.passport_photo_url ? `<div><label class="fl">Паспорт</label><img src="${v.passport_photo_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
-                ${v.passport_registration_url ? `<div><label class="fl">Регистрация</label><img src="${v.passport_registration_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
+                ${v.selfie_url ? `<div><label class="fl">Селфи с паспортом</label><img src="${v.selfie_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
+                ${v.passport_photo_url ? `<div><label class="fl">Разворот паспорта</label><img src="${v.passport_photo_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
+                ${v.passport_registration_url ? `<div><label class="fl">Страница регистрации</label><img src="${v.passport_registration_url}" style="width:100%;border-radius:var(--r-md);cursor:pointer;border:1px solid var(--brd-default);" onclick="window.open(this.src)"></div>` : ''}
             </div>
             <div style="display:flex;gap:12px;margin-top:20px;">
-                <button class="btn btn-primary btn-full" onclick="approveVerification(${v.id});closeModal('verification-modal')"><i data-lucide="check"></i> Одобрить</button>
+                <button class="btn btn-primary btn-full" onclick="approveVerification(${v.id});closeModal('verification-modal')"><i data-lucide="check"></i> Одобрить верификацию</button>
                 <button class="btn btn-logout btn-full" onclick="rejectVerification(${v.id});closeModal('verification-modal')"><i data-lucide="x"></i> Отклонить</button>
             </div>`;
         openModal('verification-modal');
         if (window.lucide) lucide.createIcons();
-    } catch (e) { notify('Ошибка просмотра', 'error'); }
+    } catch (e) { notify('Ошибка просмотра данных', 'error'); }
 }
 
 async function approveVerification(id) {
-    if (!confirm('Одобрить верификацию?')) return;
+    if (!confirm('Одобрить верификацию пользователя?')) return;
     const res = await fetch(`/api/admin/verifications/${id}/approve`, { method: 'POST' });
     const data = await res.json();
     if (data.success) { notify('Верификация подтверждена', 'success'); loadVerifications(); loadDashboard(); }
@@ -281,7 +281,7 @@ async function approveVerification(id) {
 }
 
 async function rejectVerification(id) {
-    const comment = prompt('Причина отклонения:');
+    const comment = prompt('Причина отклонения (будет направлена трейдеру):');
     if (comment === null) return;
     const res = await fetch(`/api/admin/verifications/${id}/reject`, {
         method: 'POST',
@@ -305,19 +305,19 @@ async function loadOrders() {
         if (!body) return;
 
         if (!orders.length) {
-            body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:24px;">Нет ордеров</td></tr>';
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:24px;">Ордера отсутствуют</td></tr>';
             return;
         }
 
         body.innerHTML = orders.map(o => `
             <tr>
-                <td style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">${o.order_number}</td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--accent);">#${o.order_number}</td>
                 <td><strong>${o.username || 'ID ' + o.user_id}</strong></td>
                 <td style="font-family:var(--font-mono);font-weight:700;color:var(--mint);">${formatRub(o.amount_rub)}</td>
                 <td><span class="badge badge-${o.status === 'completed' ? 'success' : o.status === 'active' ? 'warning' : 'danger'}">${o.status}</span></td>
                 <td>${o.status === 'active' ? `
-                    <button class="btn btn-small" style="background:var(--mint-subtle);color:var(--mint);" onclick="adminCompleteOrder(${o.id})"><i data-lucide="check"></i></button>
-                    <button class="btn btn-small" style="background:var(--rose-subtle);color:var(--rose);" onclick="adminCancelOrder(${o.id})"><i data-lucide="x"></i></button>` : '—'}</td>
+                    <button class="btn btn-small" style="background:var(--mint-subtle);color:var(--mint);" onclick="adminCompleteOrder(${o.id})" title="Завершить"><i data-lucide="check"></i></button>
+                    <button class="btn btn-small" style="background:var(--rose-subtle);color:var(--rose);" onclick="adminCancelOrder(${o.id})" title="Отменить"><i data-lucide="x"></i></button>` : '—'}</td>
                 <td style="color:var(--txt-3);font-size:.8rem;">${formatDate(o.created_at)}</td>
             </tr>`).join('');
         if (window.lucide) lucide.createIcons();
@@ -338,7 +338,7 @@ function updateOrderModalUserInfo() {
     const info = document.getElementById('order-available-info');
     if (u && info) {
         const available = u.balance_rub - (u.held_rub || 0);
-        info.textContent = `Доступно: ${formatRub(available)} (Баланс: ${formatRub(u.balance_rub)}, Холд: ${formatRub(u.held_rub || 0)})`;
+        info.textContent = `Доступная казна: ${formatRub(available)} (Баланс: ${formatRub(u.balance_rub)}, Холд: ${formatRub(u.held_rub || 0)})`;
     }
 }
 
@@ -347,7 +347,7 @@ async function createOrder() {
     const orderNumber = document.getElementById('order-number').value.trim();
     const amount = parseFloat(document.getElementById('order-amount').value);
 
-    if (!userId || !amount || amount <= 0) return notify('Заполните сумму', 'error');
+    if (!userId || !amount || amount <= 0) return notify('Заполните сумму ордера', 'error');
 
     const res = await fetch('/api/admin/orders/create', {
         method: 'POST',
@@ -356,7 +356,7 @@ async function createOrder() {
     });
     const data = await res.json();
     if (data.success) {
-        notify('Ордер создан', 'success');
+        notify('Ордер сформирован и направлен трейдеру', 'success');
         closeModal('create-order-modal');
         document.getElementById('order-number').value = '';
         document.getElementById('order-amount').value = '';
@@ -365,10 +365,10 @@ async function createOrder() {
 }
 
 async function adminCompleteOrder(id) {
-    if (!confirm('Закрыть ордер как выполненный?')) return;
+    if (!confirm('Принудительно закрыть ордер как выполненный?')) return;
     const res = await fetch(`/api/admin/orders/${id}/complete`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Ордер исполнен', 'success'); loadOrders(); loadDashboard(); }
+    if (data.success) { notify('Ордер успешно исполнен', 'success'); loadOrders(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
@@ -392,20 +392,20 @@ async function loadAppeals() {
         if (!body) return;
 
         if (!appeals.length) {
-            body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:24px;">Нет апелляций</td></tr>';
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--txt-3);padding:24px;">Апелляции отсутствуют</td></tr>';
             return;
         }
 
         body.innerHTML = appeals.map(a => `
             <tr>
-                <td style="font-family:var(--font-mono);font-weight:700;color:var(--rose);">${a.appeal_number}</td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--rose);">#${a.appeal_number}</td>
                 <td><strong>${a.username || 'ID ' + a.user_id}</strong></td>
-                <td style="font-family:var(--font-mono);">${a.order_number || '—'}</td>
+                <td style="font-family:var(--font-mono);">${a.order_number ? '#' + a.order_number : '—'}</td>
                 <td style="font-family:var(--font-mono);font-weight:700;color:var(--rose);">${formatRub(a.amount_rub)}</td>
                 <td><span class="badge badge-${a.status === 'resolved' ? 'success' : a.status === 'pending' ? 'warning' : 'danger'}">${a.status}</span></td>
                 <td>${a.status === 'pending' ? `
                     <button class="btn btn-small" style="background:var(--mint-subtle);color:var(--mint);" onclick="resolveAppeal(${a.id})"><i data-lucide="check-check"></i> Списать</button>
-                    <button class="btn btn-small" style="background:var(--rose-subtle);color:var(--rose);" onclick="rejectAppealAdmin(${a.id})"><i data-lucide="undo-2"></i> Вернуть</button>` : '—'}</td>
+                    <button class="btn btn-small" style="background:var(--rose-subtle);color:var(--rose);" onclick="rejectAppealAdmin(${a.id})"><i data-lucide="undo-2"></i> Разморозить</button>` : '—'}</td>
             </tr>`).join('');
         if (window.lucide) lucide.createIcons();
     } catch (e) { console.error('Appeals error', e); }
@@ -414,7 +414,7 @@ async function loadAppeals() {
 async function showCreateAppealModal() {
     await loadUsersForSelect();
     const select = document.getElementById('appeal-user');
-    if (select) select.innerHTML = '<option value="">Выберите</option>' + allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id})</option>`).join('');
+    if (select) select.innerHTML = '<option value="">Выберите трейдера</option>' + allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id})</option>`).join('');
     openModal('create-appeal-modal');
 }
 
@@ -427,7 +427,7 @@ async function createAppeal() {
     const description = document.getElementById('appeal-description').value.trim();
     const receiptFile = document.getElementById('appeal-receipt')?.files[0];
 
-    if (!amount || amount <= 0) return notify('Укажите сумму', 'error');
+    if (!amount || amount <= 0) return notify('Укажите сумму спора', 'error');
 
     let receiptUrl = '';
     if (receiptFile) receiptUrl = await fileToBase64(receiptFile);
@@ -442,25 +442,25 @@ async function createAppeal() {
     });
     const data = await res.json();
     if (data.success) {
-        notify('Апелляция создана, сумма в холде', 'success');
+        notify('Апелляция открыта, сумма заблокирована в холд', 'success');
         closeModal('create-appeal-modal');
         loadAppeals(); loadDashboard();
     } else notify(data.error, 'error');
 }
 
 async function resolveAppeal(id) {
-    if (!confirm('Решить апелляцию? Сумма будет списана с баланса.')) return;
+    if (!confirm('Решить апелляцию? Сумма будет окончательно списана с баланса трейдера.')) return;
     const res = await fetch(`/api/admin/appeals/${id}/resolve`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Апелляция решена, средства списаны', 'success'); loadAppeals(); loadDashboard(); }
+    if (data.success) { notify('Апелляция удовлетворена, средства списаны', 'success'); loadAppeals(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
 async function rejectAppealAdmin(id) {
-    if (!confirm('Отклонить апелляцию? Холд будет снят.')) return;
+    if (!confirm('Отклонить апелляцию? Замороженные средства вернутся на баланс трейдера.')) return;
     const res = await fetch(`/api/admin/appeals/${id}/reject`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Апелляция отклонена, холд снят', 'info'); loadAppeals(); loadDashboard(); }
+    if (data.success) { notify('Апелляция отклонена, холд разморожен', 'info'); loadAppeals(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
@@ -476,7 +476,7 @@ async function loadDeposits() {
         if (!body) return;
 
         if (!deposits.length) {
-            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Нет депозитов</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Депозиты отсутствуют</td></tr>';
             return;
         }
 
@@ -484,9 +484,9 @@ async function loadDeposits() {
             <tr>
                 <td style="font-family:var(--font-mono);">#${d.id}</td>
                 <td><strong>${d.username || 'ID ' + d.user_id}</strong></td>
-                <td style="font-family:var(--font-mono);font-weight:700;color:var(--mint);">${d.amount_usdt}</td>
+                <td style="font-family:var(--font-mono);font-weight:700;color:var(--mint);">${d.amount_usdt} USDT</td>
                 <td style="font-family:var(--font-mono);">${formatRub(d.amount_rub)}</td>
-                <td style="font-family:var(--font-mono);font-size:.75rem;">${d.network}</td>
+                <td><span style="font-family:var(--font-mono);font-size:.75rem;">${d.network}</span></td>
                 <td style="font-family:var(--font-mono);font-size:.72rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${d.tx_hash || ''}">${d.tx_hash || '—'}</td>
                 <td><span class="badge badge-${d.status === 'confirmed' ? 'success' : d.status === 'pending' ? 'warning' : 'danger'}">${d.status}</span></td>
                 <td>${d.status === 'pending' ? `
@@ -498,10 +498,10 @@ async function loadDeposits() {
 }
 
 async function confirmDepositAdmin(id) {
-    if (!confirm('Подтвердить депозит и начислить рубли?')) return;
+    if (!confirm('Подтвердить получение криптовалюты и начислить рубли на баланс?')) return;
     const res = await fetch(`/api/admin/deposits/${id}/confirm`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Депозит зачислен', 'success'); loadDeposits(); loadDashboard(); }
+    if (data.success) { notify('Депозит зачислен на баланс трейдера', 'success'); loadDeposits(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
@@ -525,7 +525,7 @@ async function loadWithdrawals() {
         if (!body) return;
 
         if (!withdrawals.length) {
-            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Нет выводов</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Заявки на выплату отсутствуют</td></tr>';
             return;
         }
 
@@ -539,7 +539,7 @@ async function loadWithdrawals() {
                 <td style="font-family:var(--font-mono);font-size:.8rem;">${w.phone || '—'}</td>
                 <td><span class="badge badge-${w.status === 'completed' ? 'success' : w.status === 'pending' ? 'warning' : 'danger'}">${w.status}</span></td>
                 <td>${w.status === 'pending' ? `
-                    <button class="btn btn-small" style="background:var(--mint-subtle);color:var(--mint);" onclick="confirmWithdrawalAdmin(${w.id})"><i data-lucide="check"></i></button>
+                    <button class="btn btn-small" style="background:var(--mint-subtle);color:var(--mint);" onclick="confirmWithdrawalAdmin(${w.id})"><i data-lucide="check"></i> Выплачено</button>
                     <button class="btn btn-small" style="background:var(--rose-subtle);color:var(--rose);" onclick="rejectWithdrawalAdmin(${w.id})"><i data-lucide="x"></i></button>` : '—'}</td>
             </tr>`).join('');
         if (window.lucide) lucide.createIcons();
@@ -547,22 +547,22 @@ async function loadWithdrawals() {
 }
 
 async function confirmWithdrawalAdmin(id) {
-    if (!confirm('Подтвердить, что средства переведены?')) return;
+    if (!confirm('Подтвердить, что вы перевели средства трейдеру по реквизитам?')) return;
     const res = await fetch(`/api/admin/withdrawals/${id}/confirm`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Вывод подтверждён', 'success'); loadWithdrawals(); loadDashboard(); }
+    if (data.success) { notify('Вывод средств успешно зафиксирован', 'success'); loadWithdrawals(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
 async function rejectWithdrawalAdmin(id) {
-    if (!confirm('Отклонить вывод? Средства вернутся пользователю.')) return;
+    if (!confirm('Отклонить заявку на вывод? Средства вернутся трейдеру.')) return;
     const res = await fetch(`/api/admin/withdrawals/${id}/reject`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Вывод отклонён', 'info'); loadWithdrawals(); loadDashboard(); }
+    if (data.success) { notify('Заявка на вывод отклонена', 'info'); loadWithdrawals(); loadDashboard(); }
     else notify(data.error, 'error');
 }
 
-// ——— USERS ———
+// ——— USERS & CREDENTIALS ———
 async function loadUsers() {
     try {
         const res = await fetch('/api/admin/users');
@@ -572,7 +572,7 @@ async function loadUsers() {
         if (!body) return;
 
         if (!allUsers.length) {
-            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Нет пользователей</td></tr>';
+            body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--txt-3);padding:24px;">Пользователи отсутствуют</td></tr>';
             return;
         }
 
@@ -598,11 +598,11 @@ async function loadUsersForSelect() {
 
         const orderUser = document.getElementById('order-user');
         if (orderUser) {
-            orderUser.innerHTML = allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id})</option>`).join('');
+            orderUser.innerHTML = allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id}) — Казна: ${formatRub(u.balance_rub - (u.held_rub || 0))}</option>`).join('');
         }
         const notifUser = document.getElementById('notif-user');
         if (notifUser) {
-            notifUser.innerHTML = '<option value="all">Все</option>' + allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id})</option>`).join('');
+            notifUser.innerHTML = '<option value="all">Глобальная рассылка (Всем)</option>' + allUsers.map(u => `<option value="${u.id}">${u.username} (${u.internal_id || 'ID ' + u.id})</option>`).join('');
         }
     } catch (e) { console.error('Users select error', e); }
 }
@@ -613,41 +613,93 @@ async function viewUserModal(id) {
         const u = await res.json();
         if (!u) return;
 
+        const currentPassword = u.raw_password ? u.raw_password : '(Пароль ещё не был сохранён в открытом виде)';
+        const currentMarkup = u.markup_percent !== null && u.markup_percent !== undefined ? u.markup_percent : '';
+
         document.getElementById('user-modal-body').innerHTML = `
-            <div style="margin-bottom:20px;padding:16px;background:var(--bg-elevated);border-radius:var(--r-md);border:1px solid var(--brd-subtle);">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+            <!-- User Credentials & Info Header -->
+            <div style="margin-bottom:16px;padding:16px;background:var(--bg-elevated);border-radius:var(--r-md);border:1px solid var(--brd-subtle);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
                     <div>
-                        <h3 style="font-size:1.2rem;font-weight:800;">${u.username}</h3>
-                        <p style="color:var(--txt-3);font-family:var(--font-mono);font-size:.85rem;">ID: ${u.internal_id || u.id}</p>
+                        <h3 style="font-size:1.2rem;font-weight:800;color:var(--txt-1);">${u.username}</h3>
+                        <p style="color:var(--txt-3);font-family:var(--font-mono);font-size:.85rem;margin-top:2px;">Внутренний ID: <strong>${u.internal_id || u.id}</strong></p>
                     </div>
                     <div style="text-align:right;">
                         <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-mono);color:var(--mint);">${formatRub(u.balance_rub)}</div>
-                        <div style="font-size:.8rem;color:var(--txt-3);">Холд: ${formatRub(u.held_rub || 0)}</div>
+                        <div style="font-size:.8rem;color:var(--txt-3);">В холде: ${formatRub(u.held_rub || 0)}</div>
+                    </div>
+                </div>
+
+                <!-- Credentials viewer block -->
+                <div style="margin-top:14px;padding:12px;background:var(--bg-surface);border-radius:var(--r-sm);border:1px dashed var(--brd-strong);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;margin-bottom:6px;">
+                        <span>👤 Логин: <strong style="font-family:var(--font-mono);color:var(--accent);">${u.username}</strong></span>
+                        <button class="btn btn-ghost btn-small" onclick="navigator.clipboard.writeText('${u.username}').then(()=>notify('Логин скопирован','success'))"><i data-lucide="copy"></i></button>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.88rem;">
+                        <span>🔑 Пароль: <strong style="font-family:var(--font-mono);color:var(--mint);">${currentPassword}</strong></span>
+                        ${u.raw_password ? `<button class="btn btn-ghost btn-small" onclick="navigator.clipboard.writeText('${u.raw_password}').then(()=>notify('Пароль скопирован','success'))"><i data-lucide="copy"></i></button>` : ''}
                     </div>
                 </div>
             </div>
-            <div style="padding:16px;background:var(--bg-elevated);border-radius:var(--r-md);border:1px solid var(--brd-subtle);margin-bottom:16px;">
-                <label class="fl">Корректировка баланса</label>
+
+            <!-- Individual Rate Markup -->
+            <div class="card" style="padding:16px;margin-bottom:16px;">
+                <label class="fl">Индивидуальная ставка наценки курса для трейдера (%)</label>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <input type="number" id="user-markup-input" step="0.1" placeholder="Глобальная ставка (по умолчанию)" value="${currentMarkup}" class="fi">
+                    <button class="btn btn-primary" onclick="saveUserMarkup(${u.id})">Сохранить ставку</button>
+                </div>
+                <p style="font-size:11px;color:var(--txt-3);margin-top:6px;">Оставьте поле пустым, чтобы трейдер работал по общей ставке из настроек сервиса.</p>
+            </div>
+
+            <!-- Balance Adjustment -->
+            <div class="card" style="padding:16px;margin-bottom:16px;">
+                <label class="fl">Корректировка баланса казначейства</label>
                 <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                    <input type="number" id="adj-balance-amount" placeholder="Сумма (₽)" class="fi" style="flex:1;min-width:120px;">
+                    <input type="number" id="adj-balance-amount" placeholder="Сумма в рублях (₽)" class="fi" style="flex:1;min-width:120px;">
                     <button class="btn btn-primary" onclick="adjustUserBalance(${u.id},'add')">+ Начислить</button>
                     <button class="btn btn-logout" onclick="adjustUserBalance(${u.id},'sub')">− Списать</button>
                 </div>
             </div>
+
+            <!-- Action Controls -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-                <button class="btn ${u.is_blocked ? 'btn-primary' : 'btn-logout'}" onclick="toggleUserBlock(${u.id},${!u.is_blocked})"><i data-lucide="${u.is_blocked ? 'unlock' : 'lock'}"></i> ${u.is_blocked ? 'Разблокировать' : 'Заблокировать'}</button>
-                <button class="btn ${u.is_restricted ? 'btn-primary' : 'btn-logout'}" onclick="toggleUserRestrict(${u.id},${!u.is_restricted})"><i data-lucide="shield-alert"></i> ${u.is_restricted ? 'Снять запрет' : 'Запретить действия'}</button>
-                <button class="btn btn-ghost" onclick="resetUser2FA(${u.id})"><i data-lucide="key"></i> Сбросить 2FA</button>
-                <button class="btn btn-ghost" onclick="resetUserPassword(${u.id})"><i data-lucide="refresh-cw"></i> Сбросить пароль</button>
+                <button class="btn ${u.is_blocked ? 'btn-primary' : 'btn-logout'}" onclick="toggleUserBlock(${u.id},${!u.is_blocked})">
+                    <i data-lucide="${u.is_blocked ? 'unlock' : 'lock'}"></i> ${u.is_blocked ? 'Разблокировать' : 'Заблокировать'}
+                </button>
+                <button class="btn ${u.is_restricted ? 'btn-primary' : 'btn-logout'}" onclick="toggleUserRestrict(${u.id},${!u.is_restricted})">
+                    <i data-lucide="shield-alert"></i> ${u.is_restricted ? 'Снять запрет' : 'Запретить операции'}
+                </button>
+                <button class="btn btn-ghost" onclick="resetUser2FA(${u.id})">
+                    <i data-lucide="key"></i> Сбросить 2FA
+                </button>
+                <button class="btn btn-ghost" onclick="resetUserPassword(${u.id})">
+                    <i data-lucide="refresh-cw"></i> Задать/сбросить пароль
+                </button>
             </div>`;
         openModal('user-modal');
         if (window.lucide) lucide.createIcons();
-    } catch (e) { notify('Ошибка загрузки профиля', 'error'); }
+    } catch (e) { notify('Ошибка загрузки профиля трейдера', 'error'); }
+}
+
+async function saveUserMarkup(userId) {
+    const markupVal = document.getElementById('user-markup-input')?.value;
+    const res = await fetch(`/api/admin/users/${userId}/markup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markup_percent: markupVal })
+    });
+    const data = await res.json();
+    if (data.success) {
+        notify('Индивидуальная ставка трейдера сохранена', 'success');
+        viewUserModal(userId);
+    } else notify(data.error, 'error');
 }
 
 async function adjustUserBalance(userId, action) {
     const amount = parseFloat(document.getElementById('adj-balance-amount')?.value);
-    if (!amount || amount <= 0) return notify('Введите сумму', 'error');
+    if (!amount || amount <= 0) return notify('Введите корректную сумму', 'error');
 
     const res = await fetch(`/api/admin/users/${userId}/balance`, {
         method: 'POST',
@@ -655,14 +707,18 @@ async function adjustUserBalance(userId, action) {
         body: JSON.stringify({ amount, action })
     });
     const data = await res.json();
-    if (data.success) { notify('Баланс обновлён', 'success'); viewUserModal(userId); loadUsers(); loadDashboard(); }
-    else notify(data.error, 'error');
+    if (data.success) {
+        notify('Баланс обновлён', 'success');
+        viewUserModal(userId);
+        loadUsers();
+        loadDashboard();
+    } else notify(data.error, 'error');
 }
 
 async function toggleUserBlock(userId, block) {
     const res = await fetch(`/api/admin/users/${userId}/${block ? 'block' : 'unblock'}`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify(block ? 'Заблокирован' : 'Разблокирован', 'info'); viewUserModal(userId); loadUsers(); }
+    if (data.success) { notify(block ? 'Пользователь заблокирован' : 'Пользователь разблокирован', 'info'); viewUserModal(userId); loadUsers(); }
     else notify(data.error, 'error');
 }
 
@@ -674,7 +730,7 @@ async function toggleUserRestrict(userId, restrict) {
 }
 
 async function resetUser2FA(userId) {
-    if (!confirm('Сбросить 2FA пользователю?')) return;
+    if (!confirm('Сбросить двухфакторную аутентификацию трейдеру?')) return;
     const res = await fetch(`/api/admin/users/${userId}/reset-2fa`, { method: 'POST' });
     const data = await res.json();
     if (data.success) { notify('2FA сброшена', 'success'); viewUserModal(userId); loadUsers(); }
@@ -682,21 +738,25 @@ async function resetUser2FA(userId) {
 }
 
 async function resetUserPassword(userId) {
-    const newPass = prompt('Новый пароль для пользователя:');
-    if (!newPass) return;
+    const customPass = prompt('Введите новый пароль для трейдера (или оставьте пустым для случайной генерации):');
+    if (customPass === null) return;
+
     const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: newPass })
+        body: JSON.stringify({ password: customPass.trim() })
     });
     const data = await res.json();
-    if (data.success) notify('Пароль обновлён', 'success');
-    else notify(data.error, 'error');
+    if (data.success) {
+        notify(`Новый пароль сохранён: ${data.new_password}`, 'success');
+        viewUserModal(userId);
+        loadUsers();
+    } else notify(data.error, 'error');
 }
 
 async function createUser() {
     const username = document.getElementById('new-user-username').value.trim();
-    const password = document.getElementById('new-user-password').value;
+    const password = document.getElementById('new-user-password').value.trim();
 
     const res = await fetch('/api/admin/create-user', {
         method: 'POST',
@@ -707,10 +767,11 @@ async function createUser() {
     if (data.success) {
         lastCreatedUser = data.user;
         document.getElementById('created-username').textContent = data.user?.username || username;
-        document.getElementById('created-password').textContent = data.user?.raw_password || data.password || password;
+        document.getElementById('created-password').textContent = data.user?.password || password;
+        document.getElementById('created-user-info').classList.remove('hidden');
         document.getElementById('created-user-info').style.display = 'block';
         loadUsers(); loadDashboard();
-        notify('Пользователь создан!', 'success');
+        notify('Трейдер blueberry успешно создан!', 'success');
         if (window.lucide) lucide.createIcons();
     } else notify(data.error, 'error');
 }
@@ -718,7 +779,7 @@ async function createUser() {
 function copyCredentials() {
     const u = document.getElementById('created-username').textContent;
     const p = document.getElementById('created-password').textContent;
-    navigator.clipboard.writeText(`Логин: ${u}\nПароль: ${p}`).then(() => notify('Скопировано!', 'success'));
+    navigator.clipboard.writeText(`Логин: ${u}\nПароль: ${p}`).then(() => notify('Реквизиты доступа скопированы!', 'success'));
 }
 
 // ——— ADMINS ———
@@ -745,7 +806,7 @@ async function loadAdmins() {
 async function createAdmin() {
     const username = document.getElementById('new-admin-username').value.trim();
     const password = document.getElementById('new-admin-password').value;
-    if (!username || !password) return notify('Заполните поля', 'error');
+    if (!username || !password) return notify('Заполните логин и пароль', 'error');
 
     const res = await fetch('/api/admin/admins/create', {
         method: 'POST',
@@ -756,9 +817,10 @@ async function createAdmin() {
     if (data.success) {
         document.getElementById('created-admin-username').textContent = username;
         document.getElementById('created-admin-password').textContent = password;
+        document.getElementById('created-admin-info').classList.remove('hidden');
         document.getElementById('created-admin-info').style.display = 'block';
         loadAdmins();
-        notify('Админ создан', 'success');
+        notify('Администратор зарегистрирован', 'success');
     } else notify(data.error, 'error');
 }
 
@@ -766,7 +828,7 @@ async function deleteAdmin(id) {
     if (!confirm('Удалить администратора?')) return;
     const res = await fetch(`/api/admin/admins/${id}/delete`, { method: 'POST' });
     const data = await res.json();
-    if (data.success) { notify('Админ удалён', 'info'); loadAdmins(); }
+    if (data.success) { notify('Администратор удалён', 'info'); loadAdmins(); }
     else notify(data.error, 'error');
 }
 
@@ -824,9 +886,9 @@ async function saveSettings(e) {
                 body: JSON.stringify({ key, value })
             });
         }
-        notify('Настройки сохранены', 'success');
+        notify('Системные настройки Blueberry сохранены', 'success');
         calculateFinalRatePreview();
-    } catch (e) { notify('Ошибка сохранения', 'error'); }
+    } catch (e) { notify('Ошибка сохранения настроек', 'error'); }
 }
 
 function renderNetworksEditor() {
@@ -849,7 +911,7 @@ async function saveNetworks() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'networks', value: JSON.stringify(currentNetworks) })
     });
-    notify('Сети сохранены', 'success');
+    notify('Сети и кошельки зафиксированы', 'success');
 }
 
 function renderSupportContactsEditor() {
@@ -871,7 +933,7 @@ async function saveContacts() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'support_contacts', value: JSON.stringify(currentSupportContacts) })
     });
-    notify('Контакты сохранены', 'success');
+    notify('Контакты поддержки сохранены', 'success');
 }
 
 // ——— ADMIN SECURITY ———
@@ -908,7 +970,7 @@ async function changeAdminCreds() {
     });
     const data = await res.json();
     if (data.success) {
-        notify('Данные обновлены', 'success');
+        notify('Данные администратора обновлены', 'success');
         document.getElementById('admin-curr-pass').value = '';
         document.getElementById('admin-new-user').value = '';
         document.getElementById('admin-new-pass').value = '';
@@ -921,6 +983,7 @@ async function setupAdmin2FA() {
     if (data.success) {
         document.getElementById('admin-qr').src = data.qr_code;
         document.getElementById('admin-secret').textContent = data.secret;
+        document.getElementById('admin-2fa-setup').classList.remove('hidden');
         document.getElementById('admin-2fa-setup').style.display = 'block';
     }
 }
@@ -936,7 +999,7 @@ async function verifyAdmin2FA() {
     });
     const data = await res.json();
     if (data.success) {
-        notify('2FA подключена!', 'success');
+        notify('Blueberry 2FA Shield подключена!', 'success');
         document.getElementById('admin-2fa-setup').style.display = 'none';
         loadAdminProfile();
     } else notify(data.error, 'error');
@@ -1006,20 +1069,20 @@ function connectAdminSSE() {
 
     adminEventSource.addEventListener('new_deposit', (e) => {
         const data = JSON.parse(e.data);
-        notify(`💰 Новый депозит ${data.amount_usdt || ''} USDT от #${data.userId}`, 'info');
+        notify(`💰 Новый депозит ${data.amount_usdt || ''} USDT от трейдера #${data.userId}`, 'info');
         if (currentPage === 'deposits') loadDeposits();
         if (currentPage === 'dashboard') loadDashboard();
     });
 
     adminEventSource.addEventListener('new_withdrawal', (e) => {
         const data = JSON.parse(e.data);
-        notify(`💸 Новый вывод ${formatRub(data.amount_rub)} от #${data.userId}`, 'info');
+        notify(`💸 Новый вывод ${formatRub(data.amount_rub)} от трейдера #${data.userId}`, 'info');
         if (currentPage === 'withdrawals') loadWithdrawals();
         if (currentPage === 'dashboard') loadDashboard();
     });
 
     adminEventSource.addEventListener('withdrawal_cancelled', () => {
-        notify('❌ Вывод отменён пользователем', 'info');
+        notify('❌ Вывод отменён пользователем (возврат 30с)', 'info');
         if (currentPage === 'withdrawals') loadWithdrawals();
         if (currentPage === 'dashboard') loadDashboard();
     });
@@ -1032,7 +1095,7 @@ function connectAdminSSE() {
 
     adminEventSource.addEventListener('order_completed', (e) => {
         const data = JSON.parse(e.data);
-        notify(`✅ Ордер #${data.orderId} выполнен`, 'success');
+        notify(`✅ Ордер #${data.orderId} исполнен трейдером`, 'success');
         if (currentPage === 'orders') loadOrders();
         if (currentPage === 'dashboard') loadDashboard();
     });
@@ -1046,7 +1109,7 @@ function connectAdminSSE() {
 
     adminEventSource.addEventListener('appeal_client_action', (e) => {
         const data = JSON.parse(e.data);
-        notify(`⚖️ Ответ по апелляции ${data.appeal_number}: ${data.action}`, 'info');
+        notify(`⚖️ Ответ по апелляции #${data.appeal_number}: ${data.action}`, 'info');
         if (currentPage === 'appeals') loadAppeals();
         if (currentPage === 'dashboard') loadDashboard();
     });
