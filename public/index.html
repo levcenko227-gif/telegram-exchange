@@ -1,672 +1,866 @@
 <!DOCTYPE html>
 <html lang="ru" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>blueberry — crypto exchange</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* ==========================================================================
-           blueberry — Human-Crafted Luxury Design System (Light & Dark)
-           ========================================================================== */
-        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>blueberry — crypto exchange</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   blueberry — Human-Crafted Premium Design System
+   Dark & Light themes | Berry-Indigo palette
+   ========================================================================== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 
-        :root {
-          --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
-          --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
-          --r-sm: 8px; --r-md: 12px; --r-lg: 16px; --r-xl: 24px;
-          --sidebar-w: 260px; --header-h: 56px;
-          --font-display: 'Outfit', system-ui, sans-serif;
-          --font-mono: 'JetBrains Mono', monospace;
-          --ease-out: cubic-bezier(.16, 1, .3, 1);
-          --ease-spring: cubic-bezier(.34, 1.56, .64, 1);
-        }
+:root{
+  --sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;
+  --sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px;
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:24px;
+  --sidebar-w:260px;--header-h:56px;
+  --font-display:'Outfit',system-ui,-apple-system,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono',monospace;
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+}
 
-        /* --- DARK PALETTE --- */
-        [data-theme="dark"] {
-          --bg-0: #06040f; --bg-1: #0c0a1a; --bg-2: #13102a; --bg-3: #1a1636;
-          --bg-hover: #201c42; --bg-input: #0a0818;
-          --brd-1: rgba(255,255,255,.05); --brd-2: rgba(255,255,255,.09); --brd-3: rgba(255,255,255,.14);
-          --berry: #818cf8; --berry-hover: #a5b4fc; --berry-deep: #6366f1;
-          --berry-subtle: rgba(129,140,248,.1); --berry-glow: rgba(99,102,241,.2);
-          --mint: #34d399; --mint-subtle: rgba(52,211,153,.1);
-          --rose: #fb7185; --rose-subtle: rgba(251,113,133,.1);
-          --amber: #fbbf24; --amber-subtle: rgba(251,191,36,.1);
-          --txt-1: #f1f0ff; --txt-2: #9896b8; --txt-3: #5c5a78;
-          --shadow-s: 0 1px 2px rgba(0,0,0,.5);
-          --shadow-m: 0 8px 24px rgba(0,0,0,.4);
-          --shadow-l: 0 20px 60px rgba(0,0,0,.5);
-          --grain: .035;
-          --mesh-1: rgba(99,102,241,.12); --mesh-2: rgba(168,85,247,.08);
-          --login-bg: #06040f;
-        }
+/* ========== DARK THEME ========== */
+[data-theme="dark"]{
+  --bg-0:#06040f;--bg-1:#0c0a1a;--bg-2:#13102a;--bg-3:#1a1636;
+  --bg-hover:#201c42;--bg-input:#0a0818;
+  --brd-1:rgba(255,255,255,.05);--brd-2:rgba(255,255,255,.09);--brd-3:rgba(255,255,255,.14);
+  --berry:#818cf8;--berry-hover:#a5b4fc;--berry-deep:#6366f1;
+  --berry-subtle:rgba(129,140,248,.1);--berry-glow:rgba(99,102,241,.2);
+  --mint:#34d399;--mint-subtle:rgba(52,211,153,.1);
+  --rose:#fb7185;--rose-subtle:rgba(251,113,133,.1);
+  --amber:#fbbf24;--amber-subtle:rgba(251,191,36,.1);
+  --txt-1:#f1f0ff;--txt-2:#9896b8;--txt-3:#5c5a78;
+  --shadow-s:0 1px 2px rgba(0,0,0,.5);
+  --shadow-m:0 8px 24px rgba(0,0,0,.4);
+  --shadow-l:0 20px 60px rgba(0,0,0,.5);
+  --grain:.035;
+  --mesh-1:rgba(99,102,241,.12);--mesh-2:rgba(168,85,247,.08);
+  --login-bg:#06040f;
+}
 
-        /* --- LIGHT PALETTE --- */
-        [data-theme="light"] {
-          --bg-0: #f8f7ff; --bg-1: #ffffff; --bg-2: #f0eeff; --bg-3: #e8e5ff;
-          --bg-hover: #ddd9fc; --bg-input: #f5f3ff;
-          --brd-1: rgba(99,102,241,.06); --brd-2: rgba(99,102,241,.1); --brd-3: rgba(99,102,241,.16);
-          --berry: #6366f1; --berry-hover: #4f46e5; --berry-deep: #4338ca;
-          --berry-subtle: rgba(99,102,241,.07); --berry-glow: rgba(99,102,241,.1);
-          --mint: #059669; --mint-subtle: rgba(5,150,105,.07);
-          --rose: #e11d48; --rose-subtle: rgba(225,29,72,.07);
-          --amber: #d97706; --amber-subtle: rgba(217,119,6,.07);
-          --txt-1: #1e1b4b; --txt-2: #6b7280; --txt-3: #9ca3af;
-          --shadow-s: 0 1px 3px rgba(99,102,241,.06);
-          --shadow-m: 0 8px 24px rgba(99,102,241,.08);
-          --shadow-l: 0 20px 60px rgba(99,102,241,.1);
-          --grain: .012;
-          --mesh-1: rgba(99,102,241,.06); --mesh-2: rgba(168,85,247,.04);
-          --login-bg: #f0eeff;
-        }
+/* ========== LIGHT THEME ========== */
+[data-theme="light"]{
+  --bg-0:#f8f7ff;--bg-1:#ffffff;--bg-2:#f0eeff;--bg-3:#e8e5ff;
+  --bg-hover:#ddd9fc;--bg-input:#f5f3ff;
+  --brd-1:rgba(99,102,241,.06);--brd-2:rgba(99,102,241,.1);--brd-3:rgba(99,102,241,.16);
+  --berry:#6366f1;--berry-hover:#4f46e5;--berry-deep:#4338ca;
+  --berry-subtle:rgba(99,102,241,.07);--berry-glow:rgba(99,102,241,.1);
+  --mint:#059669;--mint-subtle:rgba(5,150,105,.07);
+  --rose:#e11d48;--rose-subtle:rgba(225,29,72,.07);
+  --amber:#d97706;--amber-subtle:rgba(217,119,6,.07);
+  --txt-1:#1e1b4b;--txt-2:#6b7280;--txt-3:#9ca3af;
+  --shadow-s:0 1px 3px rgba(99,102,241,.06);
+  --shadow-m:0 8px 24px rgba(99,102,241,.08);
+  --shadow-l:0 20px 60px rgba(99,102,241,.1);
+  --grain:.012;
+  --mesh-1:rgba(99,102,241,.06);--mesh-2:rgba(168,85,247,.04);
+  --login-bg:#f0eeff;
+}
 
-        html { font-size: 14px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        body {
-          font-family: var(--font-display); background: var(--bg-0); color: var(--txt-1);
-          min-height: 100vh; overflow-x: hidden;
-          transition: background .4s var(--ease-out), color .3s;
-        }
-        body::after {
-          content:''; position:fixed; inset:0; pointer-events:none; z-index:9998; opacity:var(--grain);
-          background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
-        }
+html{font-size:14px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{
+  font-family:var(--font-display);
+  background:var(--bg-0);
+  color:var(--txt-1);
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background .4s var(--ease-out),color .3s;
+}
+/* Grain texture overlay */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:var(--grain);
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
 
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--brd-3); border-radius: 3px; }
-        ::selection { background: var(--berry); color: #fff; }
-        .hidden { display: none !important; }
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--brd-3);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--txt-3)}
+::selection{background:var(--berry);color:#fff}
+.hidden{display:none!important}
 
-        /* BRAND LOGO */
-        .bb-logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
-        .bb-logo-mark { position: relative; width: 32px; height: 32px; flex-shrink: 0; }
-        .bb-logo-mark svg { width: 100%; height: 100%; }
-        .bb-logo-text {
-          font-size: 1.15rem; font-weight: 800; letter-spacing: -.5px;
-          background: linear-gradient(135deg, var(--berry), #c084fc);
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
+/* ==========================================================================
+   BRAND LOGO
+   ========================================================================== */
+.bb-logo{display:inline-flex;align-items:center;gap:10px;text-decoration:none}
+.bb-logo-mark{position:relative;width:32px;height:32px;flex-shrink:0}
+.bb-logo-mark svg{width:100%;height:100%}
+.bb-logo-text{
+  font-size:1.15rem;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(135deg,var(--berry),#c084fc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
 
-        /* ==========================================================================
-           AUTH SCREEN
-           ========================================================================== */
-        #auth-screen {
-          position: fixed; inset: 0; z-index: 9999; background: var(--login-bg);
-          display: flex; align-items: center; justify-content: center; transition: background .4s;
-        }
-        #auth-screen::before {
-          content: ''; position: absolute; width: 700px; height: 700px; top: 50%; left: 50%; transform: translate(-50%,-50%);
-          background: radial-gradient(ellipse at 30% 40%, var(--mesh-1) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, var(--mesh-2) 0%, transparent 60%);
-          pointer-events: none; animation: meshFloat 12s ease-in-out infinite alternate;
-        }
-        @keyframes meshFloat {
-          0% { transform: translate(-50%,-50%) scale(1) rotate(0deg); }
-          100% { transform: translate(-48%,-52%) scale(1.08) rotate(3deg); }
-        }
-        .auth-container {
-          width: 420px; max-width: 92vw; background: var(--bg-1); border: 1px solid var(--brd-2);
-          border-radius: var(--r-xl); padding: var(--sp-7) var(--sp-6) var(--sp-6); box-shadow: var(--shadow-l);
-          text-align: center; position: relative; backdrop-filter: blur(40px);
-        }
-        .auth-container .bb-logo { justify-content: center; margin-bottom: var(--sp-4); }
-        .auth-container h1 { display: none; }
-        .auth-container > p { color: var(--txt-2); font-size: .88rem; margin-bottom: var(--sp-5); font-weight: 500; }
-        .auth-form h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
-        
-        .form-group { margin-bottom: var(--sp-4); text-align: left; }
-        .form-group label { display: block; font-size: .78rem; font-weight: 600; color: var(--txt-2); margin-bottom: 6px; }
-        .form-group input, .form-group select {
-          width: 100%; padding: 11px var(--sp-4); background: var(--bg-input);
-          border: 1px solid var(--brd-2); border-radius: var(--r-md);
-          color: var(--txt-1); font-size: .9rem; font-family: var(--font-display);
-          outline: none; transition: all .15s;
-        }
-        .form-group input:focus, .form-group select:focus {
-          border-color: var(--berry); box-shadow: 0 0 0 3px var(--berry-glow);
-        }
-        .error-msg { color: var(--rose); font-size: .82rem; margin-top: 10px; }
+/* ==========================================================================
+   AUTH SCREEN
+   ========================================================================== */
+#auth-screen{
+  position:fixed;inset:0;z-index:9999;background:var(--login-bg);
+  display:flex;align-items:center;justify-content:center;transition:background .4s;
+}
+#auth-screen::before{
+  content:'';position:absolute;width:700px;height:700px;
+  top:50%;left:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(ellipse at 30% 40%,var(--mesh-1) 0%,transparent 60%),
+             radial-gradient(ellipse at 70% 60%,var(--mesh-2) 0%,transparent 60%);
+  pointer-events:none;animation:meshFloat 12s ease-in-out infinite alternate;
+}
+@keyframes meshFloat{
+  0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)}
+  100%{transform:translate(-48%,-52%) scale(1.08) rotate(3deg)}
+}
+.auth-container{
+  width:420px;max-width:92vw;background:var(--bg-1);
+  border:1px solid var(--brd-2);border-radius:var(--r-xl);
+  padding:var(--sp-7) var(--sp-6) var(--sp-6);
+  box-shadow:var(--shadow-l);text-align:center;position:relative;
+  backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);
+}
+.auth-container .bb-logo{justify-content:center;margin-bottom:var(--sp-4)}
+.auth-container .bb-logo-mark{width:44px;height:44px}
+.auth-container .bb-logo-text{font-size:1.5rem}
+.auth-container h1{display:none}
+.auth-container>p{color:var(--txt-2);font-size:.88rem;margin-bottom:var(--sp-5);font-weight:500}
+.auth-form h2{font-size:1.1rem;font-weight:700;margin-bottom:4px}
 
-        /* BUTTONS */
-        .btn {
-          display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
-          padding: 10px 18px; border-radius: var(--r-md); font-size: .88rem; font-weight: 700;
-          font-family: var(--font-display); cursor: pointer; transition: all .15s; border: 1px solid transparent; text-decoration: none;
-        }
-        .btn:active { transform: scale(.98); }
-        .btn-primary {
-          background: linear-gradient(135deg, var(--berry-deep), var(--berry));
-          color: #fff; box-shadow: 0 2px 8px var(--berry-glow), inset 0 1px 0 rgba(255,255,255,.15);
-        }
-        .btn-primary:hover { box-shadow: 0 8px 24px var(--berry-glow); transform: translateY(-1px); }
-        .btn-secondary { background: var(--bg-2); color: var(--txt-1); border-color: var(--brd-2); }
-        .btn-secondary:hover { background: var(--bg-hover); }
-        .btn-full { width: 100%; padding: 13px; }
-        .btn-small { padding: var(--sp-1) var(--sp-3); font-size: .75rem; }
-        .btn-success { background: var(--mint-subtle); color: var(--mint); border-color: rgba(52,211,153,.15); }
-        .btn-danger { background: var(--rose-subtle); color: var(--rose); border-color: rgba(251,113,133,.15); }
-        .btn-logout { background: var(--rose-subtle); color: var(--rose); width: 100%; }
+/* ==========================================================================
+   FORMS
+   ========================================================================== */
+.form-group{margin-bottom:var(--sp-4);text-align:left}
+.form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--txt-2);margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;padding:11px var(--sp-4);background:var(--bg-input);
+  border:1px solid var(--brd-2);border-radius:var(--r-md);
+  color:var(--txt-1);font-size:.9rem;font-family:var(--font-display);
+  outline:none;transition:all .15s;
+}
+.form-group input::placeholder{color:var(--txt-3)}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  border-color:var(--berry);box-shadow:0 0 0 3px var(--berry-glow);
+}
+.form-group input[type="file"]{padding:8px;cursor:pointer}
+.input-select{cursor:pointer}
+.error-msg{color:var(--rose);font-size:.82rem;margin-top:10px}
 
-        /* ==========================================================================
-           MAIN APPLICATION LAYOUT
-           ========================================================================== */
-        #main-app { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  padding:10px 18px;border-radius:var(--r-md);
+  font-size:.88rem;font-weight:700;font-family:var(--font-display);
+  cursor:pointer;transition:all .15s;border:1px solid transparent;text-decoration:none;
+}
+.btn i{width:15px;height:15px}
+.btn:active{transform:scale(.98)}
+.btn-primary{
+  background:linear-gradient(135deg,var(--berry-deep),var(--berry));
+  color:#fff;box-shadow:0 2px 8px var(--berry-glow),inset 0 1px 0 rgba(255,255,255,.15);
+}
+.btn-primary:hover{box-shadow:0 8px 24px var(--berry-glow);transform:translateY(-1px)}
+.btn-secondary{background:var(--bg-2);color:var(--txt-1);border-color:var(--brd-2)}
+.btn-secondary:hover{background:var(--bg-hover)}
+.btn-full{width:100%;padding:13px}
+.btn-small{padding:var(--sp-1) var(--sp-3);font-size:.75rem}
+.btn-small i{width:12px;height:12px}
+.btn-success{background:var(--mint-subtle);color:var(--mint);border-color:rgba(52,211,153,.2)}
+.btn-success:hover{background:rgba(52,211,153,.18)}
+.btn-danger{background:var(--rose-subtle);color:var(--rose);border-color:rgba(251,113,133,.2)}
+.btn-danger:hover{background:rgba(251,113,133,.18)}
+.btn-logout{background:var(--rose-subtle);color:var(--rose);width:100%}
+.btn-logout:hover{background:rgba(251,113,133,.18)}
 
-        /* SIDEBAR */
-        .sidebar {
-          width: var(--sidebar-w); height: 100vh; position: fixed; left: 0; top: 0;
-          background: var(--bg-1); border-right: 1px solid var(--brd-1);
-          display: flex; flex-direction: column; z-index: 100;
-          transition: transform .3s var(--ease-out), background .4s;
-        }
-        .sidebar-header {
-          height: var(--header-h); padding: 0 var(--sp-5);
-          display: flex; align-items: center; border-bottom: 1px solid var(--brd-1); flex-shrink: 0;
-        }
-        .sidebar-nav { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-3); }
-        .nav-item {
-          display: flex; align-items: center; gap: var(--sp-3); padding: 10px var(--sp-3);
-          border-radius: var(--r-sm); color: var(--txt-2); font-weight: 500; font-size: .88rem;
-          cursor: pointer; transition: all .15s; margin-bottom: 2px; user-select: none; text-decoration: none;
-        }
-        .nav-item:hover { background: var(--bg-hover); color: var(--txt-1); }
-        .nav-item.active { background: var(--berry-subtle); color: var(--berry); font-weight: 600; }
-        .sidebar-footer { padding: var(--sp-4); border-top: 1px solid var(--brd-1); flex-shrink: 0; }
+/* ==========================================================================
+   MAIN LAYOUT
+   ========================================================================== */
+#main-app{display:flex;min-height:100vh;position:relative;z-index:1}
 
-        /* HEADER */
-        .main-content { flex: 1; margin-left: var(--sidebar-w); min-height: 100vh; }
-        .app-header {
-          height: var(--header-h); border-bottom: 1px solid var(--brd-1);
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 0 var(--sp-7); position: sticky; top: 0; z-index: 50;
-          background: color-mix(in srgb, var(--bg-0) 80%, transparent);
-          backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); transition: background .4s;
-        }
-        .btn-menu {
-          display: none; width: 34px; height: 34px; border-radius: var(--r-sm);
-          border: 1px solid var(--brd-2); background: var(--bg-2); color: var(--txt-2);
-          cursor: pointer; place-items: center;
-        }
-        #page-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -.2px; }
-        .header-right { display: flex; align-items: center; gap: var(--sp-3); }
-        
-        .balance-header {
-          font-family: var(--font-mono); font-weight: 700; font-size: .95rem; color: var(--txt-1);
-          padding: 6px 12px; background: var(--bg-2); border-radius: var(--r-md); border: 1px solid var(--brd-1);
-        }
-        .btn-online {
-          padding: 6px 14px; border-radius: var(--r-sm); border: 1px solid var(--brd-2);
-          background: var(--bg-2); color: var(--txt-2); font-weight: 600; font-size: .82rem;
-          cursor: pointer; transition: all .15s; font-family: var(--font-display);
-        }
-        .btn-online.online { background: var(--mint-subtle); color: var(--mint); border-color: rgba(52,211,153,.25); }
+/* SIDEBAR */
+.sidebar{
+  width:var(--sidebar-w);height:100vh;position:fixed;left:0;top:0;
+  background:var(--bg-1);border-right:1px solid var(--brd-1);
+  display:flex;flex-direction:column;z-index:100;
+  transition:transform .3s var(--ease-out),background .4s;
+}
+.sidebar-header{
+  height:var(--header-h);padding:0 var(--sp-5);
+  display:flex;align-items:center;border-bottom:1px solid var(--brd-1);flex-shrink:0;
+}
+.sidebar-nav{flex:1;overflow-y:auto;padding:var(--sp-4) var(--sp-3)}
+.nav-item{
+  display:flex;align-items:center;gap:var(--sp-3);
+  padding:10px var(--sp-3);border-radius:var(--r-sm);
+  color:var(--txt-2);font-weight:500;font-size:.88rem;
+  cursor:pointer;transition:all .15s;margin-bottom:2px;
+  user-select:none;text-decoration:none;position:relative;overflow:hidden;
+}
+.nav-item i{width:16px;height:16px;flex-shrink:0;opacity:.5;transition:opacity .15s}
+.nav-item:hover{background:var(--bg-hover);color:var(--txt-1)}
+.nav-item:hover i{opacity:.8}
+.nav-item.active{background:var(--berry-subtle);color:var(--berry);font-weight:600}
+.nav-item.active i{opacity:1;color:var(--berry)}
+.sidebar-footer{padding:var(--sp-4);border-top:1px solid var(--brd-1);flex-shrink:0}
 
-        .theme-btn-toggle {
-          width: 34px; height: 34px; border-radius: var(--r-sm); border: 1px solid var(--brd-2);
-          background: var(--bg-2); color: var(--txt-2); display: grid; place-items: center;
-          cursor: pointer; transition: all .15s;
-        }
-        .theme-btn-toggle:hover { color: var(--amber); }
+/* HEADER */
+.main-content{flex:1;margin-left:var(--sidebar-w);min-height:100vh}
+.app-header{
+  height:var(--header-h);border-bottom:1px solid var(--brd-1);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--sp-7);position:sticky;top:0;z-index:50;
+  background:color-mix(in srgb,var(--bg-0) 80%,transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transition:background .4s;
+}
+.btn-menu{
+  display:none;width:34px;height:34px;border-radius:var(--r-sm);
+  border:1px solid var(--brd-2);background:var(--bg-2);color:var(--txt-2);
+  cursor:pointer;place-items:center;
+}
+.btn-menu i{width:16px;height:16px}
+#page-title{font-size:1.05rem;font-weight:700;letter-spacing:-.2px}
+.header-right{display:flex;align-items:center;gap:var(--sp-3)}
+.balance-header{
+  font-family:var(--font-mono);font-weight:700;font-size:.95rem;color:var(--txt-1);
+  padding:6px 12px;background:var(--bg-2);border-radius:var(--r-md);border:1px solid var(--brd-1);
+}
+.btn-online{
+  padding:6px 14px;border-radius:var(--r-sm);border:1px solid var(--brd-2);
+  background:var(--bg-2);color:var(--txt-2);font-weight:600;font-size:.82rem;
+  cursor:pointer;transition:all .15s;font-family:var(--font-display);
+}
+.btn-online.online{background:var(--mint-subtle);color:var(--mint);border-color:rgba(52,211,153,.25)}
+.theme-btn-toggle{
+  width:34px;height:34px;border-radius:var(--r-sm);
+  border:1px solid var(--brd-2);background:var(--bg-2);color:var(--txt-2);
+  display:grid;place-items:center;cursor:pointer;transition:all .15s;
+}
+.theme-btn-toggle:hover{color:var(--amber);border-color:var(--brd-3)}
+.theme-btn-toggle i{width:16px;height:16px}
 
-        .content { padding: var(--sp-7); }
-        .page { display: none; }
-        .page.active { display: block; animation: pgIn .35s var(--ease-out); }
-        @keyframes pgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.content{padding:var(--sp-7)}
 
-        /* CARDS & STATS */
-        .card {
-          background: var(--bg-1); border: 1px solid var(--brd-1);
-          border-radius: var(--r-lg); padding: var(--sp-6); margin-bottom: var(--sp-5);
-          box-shadow: var(--shadow-s); transition: background .4s, border-color .2s;
-        }
-        .card-title { font-size: 1rem; font-weight: 700; margin-bottom: var(--sp-4); }
-        .welcome-card {
-          padding: var(--sp-6); background: var(--bg-1); border: 1px solid var(--brd-1);
-          border-radius: var(--r-lg); margin-bottom: var(--sp-5);
-        }
-        .welcome-card h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
-        .welcome-card p { color: var(--txt-2); font-size: .9rem; }
+/* PAGES */
+.page{display:none}
+.page.active{display:block;animation:pgIn .35s var(--ease-out)}
+@keyframes pgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
-        .stats-grid {
-          display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); margin-bottom: var(--sp-5);
-        }
-        .stat-card {
-          padding: var(--sp-5); background: var(--bg-1); border: 1px solid var(--brd-1);
-          border-radius: var(--r-lg); box-shadow: var(--shadow-s); transition: all .25s;
-          position: relative; overflow: hidden;
-        }
-        .stat-card:hover { border-color: var(--brd-3); transform: translateY(-2px); box-shadow: var(--shadow-m); }
-        .stat-card.highlight::after {
-          content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-          background: linear-gradient(90deg, var(--berry), var(--mint));
-        }
-        .stat-label { font-size: .78rem; color: var(--txt-2); font-weight: 500; }
-        .stat-value { font-size: 1.55rem; font-weight: 800; font-family: var(--font-mono); margin-top: 4px; }
-        .stat-sub { font-size: .75rem; color: var(--txt-3); margin-top: 4px; }
+/* ==========================================================================
+   CARDS
+   ========================================================================== */
+.card{
+  background:var(--bg-1);border:1px solid var(--brd-1);
+  border-radius:var(--r-lg);padding:var(--sp-6);margin-bottom:var(--sp-5);
+  box-shadow:var(--shadow-s);transition:background .4s,border-color .2s;
+}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:var(--sp-4)}
+.welcome-card{
+  padding:var(--sp-6);background:var(--bg-1);border:1px solid var(--brd-1);
+  border-radius:var(--r-lg);margin-bottom:var(--sp-5);position:relative;overflow:hidden;
+}
+.welcome-card::before{
+  content:'';position:absolute;top:-50%;right:-10%;width:400px;height:400px;
+  background:radial-gradient(circle,var(--berry-glow) 0%,transparent 65%);pointer-events:none;
+}
+.welcome-card h2{font-size:1.3rem;font-weight:800;margin-bottom:4px;position:relative}
+.welcome-card p{color:var(--txt-2);font-size:.9rem;position:relative}
 
-        /* BALANCE PAGE */
-        .balance-card {
-          text-align: center; padding: var(--sp-7) var(--sp-6); background: var(--bg-1);
-          border-radius: var(--r-xl); position: relative; overflow: hidden; box-shadow: var(--shadow-m);
-        }
-        .balance-card::before {
-          content: ''; position: absolute; top: -40%; right: -15%; width: 450px; height: 450px;
-          background: radial-gradient(circle, var(--berry-glow) 0%, transparent 65%); pointer-events: none;
-        }
-        .balance-label { font-size: .82rem; color: var(--txt-2); font-weight: 500; margin-bottom: var(--sp-2); }
-        .balance-value { font-size: 2.8rem; font-weight: 900; font-family: var(--font-mono); letter-spacing: -1px; }
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-4);margin-bottom:var(--sp-5)}
+.stat-card{
+  padding:var(--sp-5);background:var(--bg-1);border:1px solid var(--brd-1);
+  border-radius:var(--r-lg);box-shadow:var(--shadow-s);transition:all .25s;
+  position:relative;overflow:hidden;
+}
+.stat-card:hover{border-color:var(--brd-3);transform:translateY(-2px);box-shadow:var(--shadow-m)}
+.stat-card::after{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--berry),#c084fc,var(--mint));
+  opacity:0;transition:opacity .25s;
+}
+.stat-card:hover::after{opacity:1}
+.stat-card.highlight::after{opacity:1}
+.stat-label{font-size:.78rem;color:var(--txt-2);font-weight:500}
+.stat-value{font-size:1.55rem;font-weight:800;font-family:var(--font-mono);margin-top:4px;letter-spacing:-.5px}
+.stat-sub{font-size:.75rem;color:var(--txt-3);margin-top:4px}
 
-        .input-wrapper { position: relative; }
-        .input-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--txt-3); }
-        .min-amount { font-size: .78rem; color: var(--txt-3); margin-top: 4px; }
+/* ==========================================================================
+   BALANCE PAGE
+   ========================================================================== */
+.balance-card{
+  text-align:center;padding:var(--sp-7) var(--sp-6);
+  background:var(--bg-1);border:1px solid var(--brd-1);
+  border-radius:var(--r-xl);position:relative;overflow:hidden;box-shadow:var(--shadow-m);
+}
+.balance-card::before{
+  content:'';position:absolute;top:-40%;right:-15%;width:450px;height:450px;
+  background:radial-gradient(circle,var(--berry-glow) 0%,transparent 65%);
+  pointer-events:none;animation:meshFloat 15s ease-in-out infinite alternate;
+}
+.balance-label{font-size:.82rem;color:var(--txt-2);font-weight:500;margin-bottom:var(--sp-2);position:relative}
+.balance-value{font-size:2.8rem;font-weight:900;font-family:var(--font-mono);letter-spacing:-1px;position:relative}
 
-        .exchange-preview {
-          padding: var(--sp-4); background: var(--bg-2); border-radius: var(--r-md);
-          margin-bottom: var(--sp-4); border: 1px solid var(--brd-1);
-        }
-        .preview-row { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: .9rem; }
-        .preview-row:last-child { margin-bottom: 0; }
-        .preview-row .highlight { font-weight: 700; font-family: var(--font-mono); color: var(--txt-1); }
-        .preview-row .earned { font-weight: 700; font-family: var(--font-mono); color: var(--mint); }
+.input-wrapper{position:relative}
+.input-suffix{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-weight:700;color:var(--txt-3);font-size:.85rem}
+.min-amount{font-size:.78rem;color:var(--txt-3);margin-top:4px}
 
-        .address-box {
-          display: flex; justify-content: space-between; align-items: center; padding: 12px var(--sp-4);
-          background: var(--bg-input); border: 1px dashed var(--brd-3); border-radius: var(--r-md);
-          margin-top: 6px; margin-bottom: var(--sp-4);
-        }
-        .address-box code { font-family: var(--font-mono); color: var(--berry); font-size: .85rem; word-break: break-all; }
-        .btn-copy { background: none; border: none; font-size: 1.1rem; cursor: pointer; }
+.exchange-preview{
+  padding:var(--sp-4);background:var(--bg-2);border-radius:var(--r-md);
+  margin-bottom:var(--sp-4);border:1px solid var(--brd-1);
+}
+.preview-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:.9rem}
+.preview-row:last-child{margin-bottom:0}
+.preview-row .highlight{font-weight:700;font-family:var(--font-mono);color:var(--txt-1)}
+.preview-row .earned{font-weight:700;font-family:var(--font-mono);color:var(--mint)}
 
-        .warning-box {
-          display: flex; gap: var(--sp-3); padding: 12px; background: var(--amber-subtle);
-          border: 1px solid rgba(251,191,36,.2); border-radius: var(--r-md); color: var(--amber); margin-bottom: var(--sp-4); font-size: .85rem;
-        }
+.wallet-address label{display:block;font-size:.78rem;font-weight:600;color:var(--txt-2);margin-bottom:6px}
+.address-box{
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:12px var(--sp-4);background:var(--bg-input);
+  border:1px dashed var(--brd-3);border-radius:var(--r-md);
+  margin-top:6px;margin-bottom:var(--sp-4);transition:border-color .15s;
+}
+.address-box:hover{border-color:var(--berry)}
+.address-box code{font-family:var(--font-mono);color:var(--berry);font-size:.85rem;word-break:break-all}
+.btn-copy{background:none;border:none;font-size:1.1rem;cursor:pointer;flex-shrink:0}
 
-        .transaction-details { padding: 12px; background: var(--bg-2); border-radius: var(--r-md); margin-bottom: var(--sp-4); }
-        .detail-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: .85rem; font-family: var(--font-mono); }
+.warning-box{
+  display:flex;gap:var(--sp-3);padding:12px;
+  background:var(--amber-subtle);border:1px solid rgba(251,191,36,.2);
+  border-radius:var(--r-md);color:var(--amber);margin-bottom:var(--sp-4);font-size:.85rem;
+}
+.warning-box strong{display:block;margin-bottom:2px}
+.warning-icon{font-size:1.1rem}
 
-        /* WIZARD SETUP */
-        .setup-step {
-          padding: var(--sp-5); background: var(--bg-2); border: 1px solid var(--brd-1);
-          border-radius: var(--r-lg); margin-bottom: var(--sp-4); transition: all .2s;
-        }
-        .setup-step.completed { border-color: var(--mint); background: var(--mint-subtle); }
-        .setup-step.locked { opacity: .5; pointer-events: none; }
-        .step-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--sp-3); }
-        .qr-container { padding: 12px; background: #fff; border-radius: var(--r-md); width: fit-content; margin: var(--sp-3) auto; }
-        .qr-container img { width: 140px; height: 140px; display: block; }
-        .secret-key { text-align: center; margin-bottom: var(--sp-4); }
-        .secret-key code { font-family: var(--font-mono); color: var(--berry); font-size: .95rem; }
+.transaction-details{padding:12px var(--sp-4);background:var(--bg-2);border-radius:var(--r-md);margin-bottom:var(--sp-4);border:1px solid var(--brd-1)}
+.detail-row{display:flex;justify-content:space-between;margin-bottom:6px;font-size:.85rem;font-family:var(--font-mono)}
+.detail-row:last-child{margin-bottom:0}
 
-        /* TOAST */
-        .toast {
-          position: fixed; bottom: var(--sp-6); left: 50%; transform: translateX(-50%);
-          padding: var(--sp-3) var(--sp-5); border-radius: var(--r-md); font-weight: 600; font-size: .85rem;
-          z-index: 99999; background: var(--bg-1); border: 1px solid var(--brd-3); box-shadow: var(--shadow-l);
-        }
-        .toast.success { border-color: var(--mint); color: var(--mint); }
-        .toast.error { border-color: var(--rose); color: var(--rose); }
-        .toast.info { border-color: var(--berry); color: var(--berry); }
+.info-box{
+  padding:12px var(--sp-4);background:var(--berry-subtle);
+  border:1px solid var(--brd-2);border-radius:var(--r-md);
+  margin-bottom:var(--sp-4);font-size:.85rem;color:var(--txt-2);
+}
 
-        /* BADGES */
-        .order-status {
-          display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
-          border-radius: 4px; font-size: .72rem; font-weight: 700; text-transform: uppercase;
-        }
-        .status-active, .status-pending { background: var(--amber-subtle); color: var(--amber); }
-        .status-completed, .status-confirmed { background: var(--mint-subtle); color: var(--mint); }
-        .status-failed, .status-rejected, .status-expired { background: var(--rose-subtle); color: var(--rose); }
+/* ==========================================================================
+   SETUP WIZARD
+   ========================================================================== */
+.setup-step{
+  padding:var(--sp-5);background:var(--bg-2);border:1px solid var(--brd-1);
+  border-radius:var(--r-lg);margin-bottom:var(--sp-4);transition:all .2s;
+}
+.setup-step.completed{border-color:var(--mint);background:var(--mint-subtle)}
+.setup-step.locked{opacity:.5;pointer-events:none}
+.step-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--sp-3);gap:12px}
+.step-status{font-size:1.2rem;flex-shrink:0}
+.step-pending{
+  padding:14px;background:var(--amber-subtle);border:1px solid rgba(251,191,36,.2);
+  border-radius:var(--r-md);color:var(--amber);font-size:.9rem;
+}
+.qr-container{padding:12px;background:#fff;border-radius:var(--r-md);width:fit-content;margin:var(--sp-3) auto}
+.qr-container img{width:140px;height:140px;display:block}
+.secret-key{text-align:center;margin-bottom:var(--sp-4)}
+.secret-key label{font-size:.78rem;color:var(--txt-2);margin-right:6px}
+.secret-key code{font-family:var(--font-mono);color:var(--berry);font-size:.95rem;word-break:break-all}
+.step-complete{text-align:center;padding:var(--sp-6)}
+.step-complete h3{font-size:1.2rem;font-weight:800}
 
-        @media (max-width: 900px) { .stats-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 768px) {
-          .btn-menu { display: grid; }
-          .sidebar { transform: translateX(-100%); }
-          .sidebar.open { transform: translateX(0); }
-          .main-content { margin-left: 0; }
-          .app-header { padding: 0 var(--sp-5); }
-          .content { padding: var(--sp-5); }
-          .stats-grid { grid-template-columns: 1fr; }
-        }
-    </style>
+/* ==========================================================================
+   LISTS & STATES
+   ========================================================================== */
+.empty-state{padding:var(--sp-6);text-align:center;color:var(--txt-3);font-size:.9rem}
+.orders-list{width:100%}
+
+/* BADGES */
+.order-status{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+  border-radius:5px;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+}
+.status-active,.status-pending{background:var(--amber-subtle);color:var(--amber)}
+.status-completed,.status-confirmed,.status-resolved{background:var(--mint-subtle);color:var(--mint)}
+.status-failed,.status-rejected,.status-expired{background:var(--rose-subtle);color:var(--rose)}
+
+/* NOTIFICATIONS */
+.notification-item{padding:12px;border-bottom:1px solid var(--brd-1);font-size:.9rem;transition:background .15s}
+.notification-item:last-child{border-bottom:none}
+.notification-item.unread{background:var(--berry-subtle);border-left:3px solid var(--berry);padding-left:14px}
+.notification-date{font-size:.75rem;color:var(--txt-3);margin-top:4px}
+
+/* PROFILE */
+.profile-info{text-align:center}
+.profile-avatar{
+  width:56px;height:56px;border-radius:var(--r-md);
+  background:linear-gradient(135deg,var(--berry),#c084fc);
+  display:grid;place-items:center;font-size:1.5rem;margin:0 auto var(--sp-3);
+  box-shadow:0 0 20px var(--berry-glow);
+}
+.profile-name{font-size:1.2rem;font-weight:800}
+.profile-id{color:var(--txt-3);font-family:var(--font-mono);font-size:.85rem;margin-top:2px}
+.security-item{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.security-info{display:flex;align-items:center;gap:var(--sp-3)}
+.security-icon{font-size:1.3rem}
+.security-title{font-weight:600}
+.security-status{font-size:.8rem;color:var(--txt-3)}
+.security-status.active{color:var(--mint);font-weight:600}
+
+/* FILTERS */
+.filters{margin-bottom:var(--sp-4)}
+.filters select{
+  padding:8px 14px;background:var(--bg-input);border:1px solid var(--brd-2);
+  border-radius:var(--r-md);color:var(--txt-1);font-family:var(--font-display);
+  outline:none;cursor:pointer;
+}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:var(--sp-6);left:50%;transform:translateX(-50%);
+  padding:var(--sp-3) var(--sp-5);border-radius:var(--r-md);
+  font-weight:600;font-size:.85rem;z-index:99999;
+  background:var(--bg-1);border:1px solid var(--brd-3);box-shadow:var(--shadow-l);
+  backdrop-filter:blur(20px);max-width:90vw;text-align:center;
+}
+.toast.success{border-color:var(--mint);color:var(--mint)}
+.toast.error{border-color:var(--rose);color:var(--rose)}
+.toast.info{border-color:var(--berry);color:var(--berry)}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+@media(max-width:900px){
+  .stats-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .btn-menu{display:grid}
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main-content{margin-left:0}
+  .app-header{padding:0 var(--sp-4)}
+  .content{padding:var(--sp-4)}
+  .stats-grid{grid-template-columns:1fr}
+  .header-right{gap:var(--sp-2)}
+  .balance-header{font-size:.78rem;padding:4px 8px}
+  .btn-online{padding:5px 10px;font-size:.75rem}
+  .balance-value{font-size:2.2rem}
+  #page-title{font-size:.95rem}
+  .card{padding:var(--sp-4)}
+}
+</style>
 </head>
 <body>
-    <div id="app">
-        <!-- AUTH SCREEN -->
-        <div id="auth-screen">
-            <div class="auth-container">
-                <button class="theme-btn-toggle" onclick="toggleTheme()" style="position: absolute; top: var(--sp-4); right: var(--sp-4);"><i data-lucide="sun"></i></button>
-                <div class="bb-logo">
-                    <div class="bb-logo-mark">
-                        <svg viewBox="0 0 40 40" fill="none">
-                            <circle cx="15" cy="14" r="9" fill="url(#bg1)" opacity=".9"/>
-                            <circle cx="26" cy="17" r="8" fill="url(#bg2)" opacity=".8"/>
-                            <circle cx="19" cy="27" r="7.5" fill="url(#bg3)" opacity=".85"/>
-                            <defs>
-                                <linearGradient id="bg1" x1="6" y1="5" x2="24" y2="23"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
-                                <linearGradient id="bg2" x1="18" y1="9" x2="34" y2="25"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
-                                <linearGradient id="bg3" x1="11" y1="20" x2="27" y2="35"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
-                            </defs>
-                        </svg>
-                    </div>
-                    <span class="bb-logo-text">blueberry</span>
-                </div>
-                <h1>blueberry</h1>
-                <p>Премиальный сервис обмена криптовалюты</p>
-                <div class="auth-form">
-                    <h2>Вход в личный кабинет</h2>
-                    <p style="color:var(--txt-3);font-size:13px;margin-bottom:16px;">Данные для входа получите у администратора</p>
-                    <div class="form-group"><label>Логин</label><input type="text" id="login-username" placeholder="Ваш логин" autocomplete="username"></div>
-                    <div class="form-group"><label>Пароль</label><input type="password" id="login-password" placeholder="Ваш пароль" autocomplete="current-password"></div>
-                    <div class="form-group" id="login-2fa-group" style="display:none;"><label>Код Blueberry 2FA</label><input type="text" id="login-totp" placeholder="000000" maxlength="6"></div>
-                    <button class="btn btn-primary btn-full" id="btn-login" type="button">Войти в кабинет</button>
-                    <div id="login-error" class="error-msg" style="display:none;"></div>
-                </div>
-            </div>
-        </div>
+<div id="app">
 
-        <!-- MAIN APP -->
-        <div id="main-app" style="display:none;">
-            <aside class="sidebar" id="sidebar">
-                <div class="sidebar-header">
-                    <div class="bb-logo">
-                        <div class="bb-logo-mark">
-                            <svg viewBox="0 0 40 40" fill="none"><circle cx="15" cy="14" r="9" fill="url(#sg1)" opacity=".9"/><circle cx="26" cy="17" r="8" fill="url(#sg2)" opacity=".8"/><circle cx="19" cy="27" r="7.5" fill="url(#sg3)" opacity=".85"/><defs><linearGradient id="sg1" x1="6" y1="5" x2="24" y2="23"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient><linearGradient id="sg2" x1="18" y1="9" x2="34" y2="25"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient><linearGradient id="sg3" x1="11" y1="20" x2="27" y2="35"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs></svg>
-                        </div>
-                        <span class="bb-logo-text">blueberry</span>
-                    </div>
-                </div>
-                <nav class="sidebar-nav">
-                    <a href="#" class="nav-item active" data-page="home"><i data-lucide="layout-dashboard"></i> Главная</a>
-                    <a href="#" class="nav-item" data-page="orders"><i data-lucide="arrow-left-right"></i> Ордера</a>
-                    <a href="#" class="nav-item" data-page="appeals"><i data-lucide="gavel"></i> Апелляции</a>
-                    <a href="#" class="nav-item" data-page="balance"><i data-lucide="landmark"></i> Баланс</a>
-                    <a href="#" class="nav-item" data-page="withdraw"><i data-lucide="banknote"></i> Вывод</a>
-                    <a href="#" class="nav-item" data-page="requisites"><i data-lucide="credit-card"></i> Реквизиты</a>
-                    <a href="#" class="nav-item" data-page="notifications"><i data-lucide="bell"></i> Уведомления</a>
-                    <a href="#" class="nav-item" data-page="profile"><i data-lucide="shield"></i> Профиль</a>
-                </nav>
-                <div class="sidebar-footer"><button class="btn btn-logout" id="btn-logout" type="button"><i data-lucide="log-out"></i> Выйти</button></div>
-            </aside>
-
-            <main class="main-content">
-                <header class="app-header">
-                    <button class="btn-menu" id="btn-menu" type="button"><i data-lucide="menu"></i></button>
-                    <h1 id="page-title">Главная</h1>
-                    <div class="header-right">
-                        <button class="theme-btn-toggle" onclick="toggleTheme()"><i data-lucide="sun" id="client-theme-icon"></i></button>
-                        <span id="user-balance-header" class="balance-header">0.00 ₽</span>
-                        <button class="btn-online" id="btn-online" type="button">🔴 Офлайн</button>
-                    </div>
-                </header>
-
-                <div class="content">
-                    <!-- SETUP WIZARD -->
-                    <div id="page-setup" class="page" style="display:none;">
-                        <div class="card">
-                            <h2 class="card-title">Добро пожаловать в blueberry!</h2>
-                            <p style="color:var(--txt-2);margin-bottom:20px;">Для начала торговли выполните обязательные шаги защиты:</p>
-                            
-                            <div id="setup-steps">
-                                <!-- STEP 1: VERIFICATION -->
-                                <div class="setup-step" id="step-verification">
-                                    <div class="step-header">
-                                        <div>
-                                            <strong>📋 Шаг 1: Верификация</strong>
-                                            <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">Подтверждение личности партнера</p>
-                                        </div>
-                                        <span id="step-verification-status" class="step-status">⏳</span>
-                                    </div>
-                                    <div id="step-verification-form" class="step-form">
-                                        <div class="form-group"><label>Селфи с паспортом</label><input type="file" id="setup-v-selfie" accept="image/*" capture="user"></div>
-                                        <div class="form-group"><label>Фото разворота паспорта</label><input type="file" id="setup-v-passport" accept="image/*"></div>
-                                        <div class="form-group"><label>Фото страницы регистрации</label><input type="file" id="setup-v-registration" accept="image/*"></div>
-                                        <div class="form-group"><label>Номер телефона</label><input type="tel" id="setup-v-phone" placeholder="+7 (999) 123-45-67"></div>
-                                        <div class="form-group"><label>Telegram</label><input type="text" id="setup-v-telegram" placeholder="@username"></div>
-                                        <div class="form-group"><label>Соцсети</label><input type="text" id="setup-v-social" placeholder="Ссылки через запятую"></div>
-                                        <button class="btn btn-primary btn-full" id="btn-setup-submit-verification">Отправить на проверку</button>
-                                    </div>
-                                    <div id="step-verification-pending" class="step-pending" style="display:none;">
-                                        ⏳ Заявка на рассмотрении администрацией Blueberry.
-                                    </div>
-                                </div>
-                                
-                                <!-- STEP 2: PASSWORD -->
-                                <div class="setup-step locked" id="step-password">
-                                    <div class="step-header">
-                                        <div>
-                                            <strong>🔑 Шаг 2: Смена пароля</strong>
-                                            <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">Задайте постоянный пароль аккаунта</p>
-                                        </div>
-                                        <span id="step-password-status" class="step-status">🔒</span>
-                                    </div>
-                                    <div id="step-password-form" class="step-form">
-                                        <div class="form-group"><label>Текущий пароль</label><input type="password" id="setup-current-pass"></div>
-                                        <div class="form-group"><label>Новый пароль</label><input type="password" id="setup-new-pass"></div>
-                                        <button class="btn btn-primary btn-full" id="btn-setup-change-password">Сменить пароль</button>
-                                    </div>
-                                </div>
-                                
-                                <!-- STEP 3: 2FA -->
-                                <div class="setup-step locked" id="step-2fa">
-                                    <div class="step-header">
-                                        <div>
-                                            <strong>🔐 Шаг 3: Двухфакторная аутентификация</strong>
-                                            <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">Blueberry 2FA Shield</p>
-                                        </div>
-                                        <span id="step-2fa-status" class="step-status">🔒</span>
-                                    </div>
-                                    <div id="step-2fa-form" class="step-form">
-                                        <div class="qr-container"><img id="setup-qr-code" src="" alt="QR"></div>
-                                        <div class="secret-key"><label>Ключ:</label><code id="setup-secret-key">--</code></div>
-                                        <div class="form-group"><input type="text" id="setup-totp-code" placeholder="Код из приложения" maxlength="6"></div>
-                                        <button class="btn btn-primary btn-full" id="btn-setup-verify-2fa">Подключить 2FA</button>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div id="setup-complete" class="step-complete" style="display:none;text-align:center;padding:24px;">
-                                <h3>✅ Все уровни защиты подключены!</h3>
-                                <p style="color:var(--txt-2);margin-top:8px;">Теперь вы можете полноценно вести торговлю в системе Blueberry.</p>
-                                <button class="btn btn-primary" style="margin-top:16px;" onclick="showDashboard()">Перейти в кабинет →</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- HOME -->
-                    <div id="page-home" class="page">
-                        <div class="welcome-card">
-                            <h2>Добро пожаловать, <span id="welcome-name">--</span>!</h2>
-                            <p>blueberry — ваш премиальный терминал обмена</p>
-                        </div>
-                        <div class="stats-grid">
-                            <div class="stat-card"><div class="stat-label">Сегодня</div><div class="stat-value" id="stat-today-rub">0 ₽</div><div class="stat-sub" id="stat-today-deals">0 сделок</div></div>
-                            <div class="stat-card"><div class="stat-label">Вчера</div><div class="stat-value" id="stat-yesterday-rub">0 ₽</div><div class="stat-sub" id="stat-yesterday-deals">0 сделок</div></div>
-                            <div class="stat-card"><div class="stat-label">Неделя</div><div class="stat-value" id="stat-week-rub">0 ₽</div><div class="stat-sub" id="stat-week-deals">0 сделок</div></div>
-                            <div class="stat-card"><div class="stat-label">Прошлая неделя</div><div class="stat-value" id="stat-lastweek-rub">0 ₽</div><div class="stat-sub" id="stat-lastweek-deals">0 сделок</div></div>
-                            <div class="stat-card"><div class="stat-label">Месяц</div><div class="stat-value" id="stat-month-rub">0 ₽</div><div class="stat-sub" id="stat-month-deals">0 сделок</div></div>
-                            <div class="stat-card highlight"><div class="stat-label">Всего заработано</div><div class="stat-value" id="stat-total-earned" style="color:var(--mint);">0 ₽</div><div class="stat-sub" id="stat-total-deals">0 сделок</div></div>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">Активные ордера в очереди</h2>
-                            <div id="active-orders-list" class="orders-list"><div class="empty-state"><p>Нет активных ордеров</p></div></div>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">⚠️ Активные апелляции</h2>
-                            <div id="active-appeals-list" class="orders-list"><div class="empty-state"><p>Нет активных апелляций</p></div></div>
-                        </div>
-                    </div>
-
-                    <!-- ORDERS -->
-                    <div id="page-orders" class="page">
-                        <div class="card">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                                <h2 class="card-title" style="margin:0;">📦 Реестр ордеров</h2>
-                                <select id="filter-orders" style="width:auto;padding:6px 12px;"><option value="">Все</option><option value="active">Активные</option><option value="completed">Выполненные</option><option value="expired">Истёкшие</option><option value="failed">Неуспешные</option></select>
-                            </div>
-                            <div id="orders-list" class="orders-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- APPEALS -->
-                    <div id="page-appeals" class="page">
-                        <div class="card">
-                            <h2 class="card-title">⚠️ Споры и апелляции</h2>
-                            <div id="appeals-list" class="orders-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- BALANCE -->
-                    <div id="page-balance" class="page">
-                        <div class="card balance-card">
-                            <div class="balance-label">Свободный баланс для ордеров</div>
-                            <div class="balance-value" id="balance-value">0.00 ₽</div>
-                            <div id="held-balance-info" style="display:none;font-size:13px;margin-top:8px;color:var(--txt-2);"></div>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">Пополнить казначейство</h2>
-                            <div class="form-group"><label>Монета / Сеть</label><select id="deposit-network" class="input-select"></select></div>
-                            <div class="form-group">
-                                <label>Сумма</label>
-                                <div class="input-wrapper"><input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01"><span class="input-suffix" id="coin-suffix">USDT</span></div>
-                                <div class="min-amount">Минимум: <span id="min-deposit">20</span> USDT</div>
-                            </div>
-                            <div class="exchange-preview" id="exchange-preview" style="display:none;">
-                                <div class="preview-row"><span>На баланс:</span><span id="preview-rub" class="highlight">0.00 ₽</span></div>
-                                <div class="preview-row"><span>Заработок:</span><span id="preview-earned" class="earned">+0.00 ₽</span></div>
-                            </div>
-                            <button class="btn btn-primary btn-full" id="btn-deposit" type="button">Продолжить</button>
-                        </div>
-                        <div class="card" id="send-section" style="display:none;">
-                            <h2 class="card-title">Отправьте криптовалюту</h2>
-                            <div class="wallet-address">
-                                <label>Адрес кошелька Blueberry:</label>
-                                <div class="address-box"><code id="wallet-address">--</code><button class="btn-copy" id="btn-copy" type="button">📋</button></div>
-                            </div>
-                            <div class="warning-box"><span>⚠️</span><div><strong>Важно!</strong> Отправляйте только в указанной сети!</div></div>
-                            <div class="transaction-details">
-                                <div class="detail-row"><span>К отправке:</span><span id="send-amount">--</span></div>
-                                <div class="detail-row"><span>На баланс:</span><span id="receive-amount">-- ₽</span></div>
-                                <div class="detail-row"><span>Заработок:</span><span id="earn-amount">+-- ₽</span></div>
-                            </div>
-                            <div class="form-group"><label>Хеш транзакции (TX Hash)</label><input type="text" id="tx-hash" placeholder="Вставьте хеш транзакции"></div>
-                            <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил перевод</button>
-                            <button class="btn btn-secondary btn-full" id="btn-cancel-deposit" type="button" style="margin-top:10px;">Отменить</button>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">История депозитов</h2>
-                            <div id="deposits-list" class="orders-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- WITHDRAW -->
-                    <div id="page-withdraw" class="page">
-                        <div class="card">
-                            <h2 class="card-title">💸 Вывести средства в фиат</h2>
-                            <div class="form-group">
-                                <label>Сумма вывода (₽)</label>
-                                <div class="input-wrapper"><input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01"><span class="input-suffix">₽</span></div>
-                                <div class="min-amount">Минимум: 1 000 ₽ | Доступно: <span id="withdraw-balance">0</span> ₽</div>
-                            </div>
-                            <div class="form-group"><label>Выберите реквизиты</label><select id="withdraw-requisite" class="input-select"><option value="">Выберите реквизит</option></select></div>
-                            <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить выплату</button>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">История выплат</h2>
-                            <div id="withdrawals-list" class="orders-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- REQUISITES -->
-                    <div id="page-requisites" class="page">
-                        <div class="card">
-                            <h2 class="card-title">💳 Банковские реквизиты</h2>
-                            <div class="form-group"><label>ФИО получателя</label><input type="text" id="req-name" placeholder="Иванов Иван Иванович"></div>
-                            <div class="form-group"><label>Телефон / СБП</label><input type="tel" id="req-phone" placeholder="+7 (999) 123-45-67"></div>
-                            <div class="form-group"><label>Банк</label><input type="text" id="req-bank" placeholder="Сбербанк / Т-Банк"></div>
-                            <button class="btn btn-primary btn-full" id="btn-save-req" type="button">Добавить реквизит</button>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">Активные реквизиты</h2>
-                            <div id="requisites-list"></div>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">📦 Архив реквизитов</h2>
-                            <div id="archived-requisites-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- NOTIFICATIONS -->
-                    <div id="page-notifications" class="page">
-                        <div class="card">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                                <h2 class="card-title" style="margin:0;">🔔 Оповещения</h2>
-                                <button class="btn btn-small btn-secondary" id="btn-mark-read">Прочитать все</button>
-                            </div>
-                            <div id="notifications-list"></div>
-                        </div>
-                    </div>
-
-                    <!-- PROFILE -->
-                    <div id="page-profile" class="page">
-                        <div class="card">
-                            <div style="display:flex;align-items:center;gap:16px;">
-                                <div style="width:52px;height:52px;border-radius:var(--r-md);background:linear-gradient(135deg,var(--berry),#c084fc);display:grid;place-items:center;font-size:1.4rem;font-weight:800;color:#fff;">B</div>
-                                <div>
-                                    <div style="font-size:1.2rem;font-weight:800;" id="profile-name">--</div>
-                                    <div style="color:var(--txt-3);font-family:var(--font-mono);font-size:.85rem;" id="profile-id">--</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">Смена пароля</h2>
-                            <div class="form-group"><input type="password" id="current-pass" placeholder="Текущий пароль"></div>
-                            <div class="form-group"><input type="password" id="new-pass" placeholder="Новый пароль"></div>
-                            <button class="btn btn-small btn-primary" id="btn-change-pass" type="button">Сменить пароль</button>
-                        </div>
-                        <div class="card">
-                            <h2 class="card-title">🔐 Защита 2FA</h2>
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <div>
-                                    <div style="font-weight:600;">Blueberry 2FA Shield</div>
-                                    <div style="font-size:13px;color:var(--txt-3);" id="2fa-status">Не подключена</div>
-                                </div>
-                                <button class="btn btn-small btn-primary" id="btn-2fa" type="button">Настроить</button>
-                            </div>
-                            <div id="2fa-setup" style="display:none;margin-top:16px;text-align:center;">
-                                <div class="qr-container"><img id="qr-code" src="" alt="QR"></div>
-                                <div class="secret-key"><label>Ключ:</label><code id="secret-key">--</code></div>
-                                <div class="form-group" style="max-width:240px;margin:0 auto 12px;"><input type="text" id="totp-code" placeholder="000 000" maxlength="6" style="text-align:center;"></div>
-                                <button class="btn btn-primary btn-full" id="btn-verify-2fa" type="button">Подтвердить 2FA</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </main>
-        </div>
-        <div id="toast" class="toast" style="display:none;"></div>
+<!-- ==========================================================================
+     AUTH SCREEN
+     ========================================================================== -->
+<div id="auth-screen">
+  <div class="auth-container">
+    <button class="theme-btn-toggle" onclick="toggleTheme()" style="position:absolute;top:var(--sp-4);right:var(--sp-4);"><i data-lucide="sun"></i></button>
+    <div class="bb-logo">
+      <div class="bb-logo-mark">
+        <svg viewBox="0 0 40 40" fill="none">
+          <circle cx="15" cy="14" r="9" fill="url(#bg1)" opacity=".9"/>
+          <circle cx="26" cy="17" r="8" fill="url(#bg2)" opacity=".8"/>
+          <circle cx="19" cy="27" r="7.5" fill="url(#bg3)" opacity=".85"/>
+          <defs>
+            <linearGradient id="bg1" x1="6" y1="5" x2="24" y2="23"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+            <linearGradient id="bg2" x1="18" y1="9" x2="34" y2="25"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+            <linearGradient id="bg3" x1="11" y1="20" x2="27" y2="35"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <span class="bb-logo-text">blueberry</span>
     </div>
-    
-    <script>
-        function toggleTheme() {
-            const h = document.documentElement;
-            const current = h.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            h.setAttribute('data-theme', next);
-            localStorage.setItem('bb-theme-client', next);
-            updateThemeIcons(next);
-            lucide.createIcons();
-        }
-        function updateThemeIcons(theme) {
-            document.querySelectorAll('#client-theme-icon, .theme-btn-toggle i').forEach(i => {
-                i.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
-            });
-        }
-        const savedTheme = localStorage.getItem('bb-theme-client') || 'dark';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-        updateThemeIcons(savedTheme);
-    </script>
-    <script src="/js/app.js"></script>
+    <h1>blueberry</h1>
+    <p>Премиальный сервис обмена криптовалюты</p>
+    <div class="auth-form">
+      <h2>Вход в личный кабинет</h2>
+      <p style="color:var(--txt-3);font-size:13px;margin-bottom:16px;">Данные для входа получите у администратора</p>
+      <div class="form-group">
+        <label>Логин</label>
+        <input type="text" id="login-username" placeholder="Ваш логин" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="login-password" placeholder="Ваш пароль" autocomplete="current-password">
+      </div>
+      <div class="form-group" id="login-2fa-group" style="display:none;">
+        <label>Код blueberry 2FA</label>
+        <input type="text" id="login-totp" placeholder="000000" maxlength="6">
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-login" type="button">Войти в кабинет</button>
+      <div id="login-error" class="error-msg" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     MAIN APP
+     ========================================================================== -->
+<div id="main-app" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="bb-logo">
+        <div class="bb-logo-mark">
+          <svg viewBox="0 0 40 40" fill="none">
+            <circle cx="15" cy="14" r="9" fill="url(#sg1)" opacity=".9"/>
+            <circle cx="26" cy="17" r="8" fill="url(#sg2)" opacity=".8"/>
+            <circle cx="19" cy="27" r="7.5" fill="url(#sg3)" opacity=".85"/>
+            <defs>
+              <linearGradient id="sg1" x1="6" y1="5" x2="24" y2="23"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+              <linearGradient id="sg2" x1="18" y1="9" x2="34" y2="25"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+              <linearGradient id="sg3" x1="11" y1="20" x2="27" y2="35"><stop stop-color="#c084fc"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="bb-logo-text">blueberry</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-page="home"><i data-lucide="layout-dashboard"></i> Главная</a>
+      <a href="#" class="nav-item" data-page="orders"><i data-lucide="arrow-left-right"></i> Ордера</a>
+      <a href="#" class="nav-item" data-page="appeals"><i data-lucide="gavel"></i> Апелляции</a>
+      <a href="#" class="nav-item" data-page="balance"><i data-lucide="landmark"></i> Баланс</a>
+      <a href="#" class="nav-item" data-page="withdraw"><i data-lucide="banknote"></i> Вывод</a>
+      <a href="#" class="nav-item" data-page="requisites"><i data-lucide="credit-card"></i> Реквизиты</a>
+      <a href="#" class="nav-item" data-page="notifications"><i data-lucide="bell"></i> Уведомления</a>
+      <a href="#" class="nav-item" data-page="profile"><i data-lucide="shield"></i> Профиль</a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn btn-logout" id="btn-logout" type="button"><i data-lucide="log-out"></i> Выйти</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+    <header class="app-header">
+      <button class="btn-menu" id="btn-menu" type="button"><i data-lucide="menu"></i></button>
+      <h1 id="page-title">Главная</h1>
+      <div class="header-right">
+        <button class="theme-btn-toggle" onclick="toggleTheme()"><i data-lucide="sun" id="client-theme-icon"></i></button>
+        <span id="user-balance-header" class="balance-header">0.00 ₽</span>
+        <button class="btn-online" id="btn-online" type="button">🔴 Офлайн</button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ============ SETUP WIZARD ============ -->
+      <div id="page-setup" class="page" style="display:none;">
+        <div class="card">
+          <h2 class="card-title">Добро пожаловать в blueberry!</h2>
+          <p style="color:var(--txt-2);margin-bottom:20px;">Для начала работы выполните обязательные шаги защиты:</p>
+
+          <div id="setup-steps">
+            <!-- STEP 1: VERIFICATION -->
+            <div class="setup-step" id="step-verification">
+              <div class="step-header">
+                <div>
+                  <strong>📋 Шаг 1: Верификация</strong>
+                  <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">Подтверждение личности партнера</p>
+                </div>
+                <span id="step-verification-status" class="step-status">⏳</span>
+              </div>
+              <div id="step-verification-form" class="step-form">
+                <div class="form-group"><label>Селфи с паспортом</label><input type="file" id="setup-v-selfie" accept="image/*" capture="user"></div>
+                <div class="form-group"><label>Фото первого разворота паспорта</label><input type="file" id="setup-v-passport" accept="image/*"></div>
+                <div class="form-group"><label>Фото с регистрацией</label><input type="file" id="setup-v-registration" accept="image/*"></div>
+                <div class="form-group"><label>Номер телефона</label><input type="tel" id="setup-v-phone" placeholder="+7 (999) 123-45-67"></div>
+                <div class="form-group"><label>Telegram</label><input type="text" id="setup-v-telegram" placeholder="@username"></div>
+                <div class="form-group"><label>Соцсети</label><input type="text" id="setup-v-social" placeholder="Ссылки через запятую"></div>
+                <button class="btn btn-primary btn-full" id="btn-setup-submit-verification">Отправить на проверку</button>
+              </div>
+              <div id="step-verification-pending" class="step-pending" style="display:none;">
+                ⏳ Заявка на рассмотрении. Ожидайте подтверждения администратора.
+              </div>
+            </div>
+
+            <!-- STEP 2: PASSWORD -->
+            <div class="setup-step locked" id="step-password">
+              <div class="step-header">
+                <div>
+                  <strong>🔑 Шаг 2: Смена пароля</strong>
+                  <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">Обязательно смените пароль</p>
+                </div>
+                <span id="step-password-status" class="step-status">🔒</span>
+              </div>
+              <div id="step-password-form" class="step-form">
+                <div class="form-group"><label>Текущий пароль</label><input type="password" id="setup-current-pass" placeholder="Пароль от админа"></div>
+                <div class="form-group"><label>Новый пароль</label><input type="password" id="setup-new-pass" placeholder="Придумайте новый пароль"></div>
+                <button class="btn btn-primary btn-full" id="btn-setup-change-password">Сменить пароль</button>
+              </div>
+            </div>
+
+            <!-- STEP 3: 2FA -->
+            <div class="setup-step locked" id="step-2fa">
+              <div class="step-header">
+                <div>
+                  <strong>🔐 Шаг 3: Двухфакторная аутентификация</strong>
+                  <p style="font-size:13px;color:var(--txt-3);margin-top:4px;">blueberry 2FA Shield</p>
+                </div>
+                <span id="step-2fa-status" class="step-status">🔒</span>
+              </div>
+              <div id="step-2fa-form" class="step-form">
+                <div class="qr-container"><img id="setup-qr-code" src="" alt="QR"></div>
+                <div class="secret-key"><label>Ключ:</label><code id="setup-secret-key">--</code></div>
+                <div class="form-group"><input type="text" id="setup-totp-code" placeholder="Код из приложения" maxlength="6"></div>
+                <button class="btn btn-primary btn-full" id="btn-setup-verify-2fa">Подключить 2FA</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="setup-complete" class="step-complete" style="display:none;">
+            <h3>✅ Всё готово!</h3>
+            <p style="color:var(--txt-2);margin-top:8px;">Теперь вы можете полноценно пользоваться blueberry</p>
+            <button class="btn btn-primary" style="margin-top:16px;" onclick="showDashboard()">Перейти в кабинет →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ HOME ============ -->
+      <div id="page-home" class="page">
+        <div class="welcome-card">
+          <h2>Добро пожаловать, <span id="welcome-name">--</span>!</h2>
+          <p>blueberry — ваш премиальный терминал обмена</p>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Сегодня</div><div class="stat-value" id="stat-today-rub">0 ₽</div><div class="stat-sub" id="stat-today-deals">0 сделок</div></div>
+          <div class="stat-card"><div class="stat-label">Вчера</div><div class="stat-value" id="stat-yesterday-rub">0 ₽</div><div class="stat-sub" id="stat-yesterday-deals">0 сделок</div></div>
+          <div class="stat-card"><div class="stat-label">Неделя</div><div class="stat-value" id="stat-week-rub">0 ₽</div><div class="stat-sub" id="stat-week-deals">0 сделок</div></div>
+          <div class="stat-card"><div class="stat-label">Прошлая неделя</div><div class="stat-value" id="stat-lastweek-rub">0 ₽</div><div class="stat-sub" id="stat-lastweek-deals">0 сделок</div></div>
+          <div class="stat-card"><div class="stat-label">Месяц</div><div class="stat-value" id="stat-month-rub">0 ₽</div><div class="stat-sub" id="stat-month-deals">0 сделок</div></div>
+          <div class="stat-card highlight"><div class="stat-label">Всего заработано</div><div class="stat-value" id="stat-total-earned" style="color:var(--mint);">0 ₽</div><div class="stat-sub" id="stat-total-deals">0 сделок</div></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Активные ордера</h2>
+          <div id="active-orders-list" class="orders-list"><div class="empty-state"><p>Нет активных ордеров</p></div></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">⚠️ Активные апелляции</h2>
+          <div id="active-appeals-list" class="orders-list"><div class="empty-state"><p>Нет активных апелляций</p></div></div>
+        </div>
+      </div>
+
+      <!-- ============ ORDERS ============ -->
+      <div id="page-orders" class="page">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <h2 class="card-title" style="margin:0;">📦 Ордера</h2>
+            <select id="filter-orders" style="width:auto;padding:8px 14px;background:var(--bg-input);border:1px solid var(--brd-2);border-radius:var(--r-md);color:var(--txt-1);font-family:var(--font-display);outline:none;cursor:pointer;">
+              <option value="">Все</option>
+              <option value="active">Активные</option>
+              <option value="completed">Выполненные</option>
+              <option value="expired">Истёкшие</option>
+              <option value="failed">Неуспешные</option>
+            </select>
+          </div>
+          <div id="orders-list" class="orders-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ APPEALS ============ -->
+      <div id="page-appeals" class="page">
+        <div class="card">
+          <h2 class="card-title">⚠️ Апелляции</h2>
+          <div id="appeals-list" class="orders-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ BALANCE ============ -->
+      <div id="page-balance" class="page">
+        <div class="card balance-card">
+          <div class="balance-label">Ваш баланс</div>
+          <div class="balance-value" id="balance-value">0.00 ₽</div>
+          <div id="held-balance-info" style="display:none;font-size:13px;margin-top:8px;color:var(--txt-2);position:relative;"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">Пополнить баланс</h2>
+          <div class="form-group"><label>Монета / Сеть</label><select id="deposit-network" class="input-select"></select></div>
+          <div class="form-group">
+            <label>Сумма</label>
+            <div class="input-wrapper">
+              <input type="number" id="amount-usdt" placeholder="0.00" min="20" step="0.01">
+              <span class="input-suffix" id="coin-suffix">USDT</span>
+            </div>
+            <div class="min-amount">Минимум: <span id="min-deposit">20</span> USDT</div>
+          </div>
+          <div class="exchange-preview" id="exchange-preview" style="display:none;">
+            <div class="preview-row"><span>На баланс:</span><span id="preview-rub" class="highlight">0.00 ₽</span></div>
+            <div class="preview-row"><span>Заработок:</span><span id="preview-earned" class="earned">+0.00 ₽</span></div>
+          </div>
+          <button class="btn btn-primary btn-full" id="btn-deposit" type="button">Продолжить</button>
+        </div>
+
+        <div class="card" id="send-section" style="display:none;">
+          <h2 class="card-title">Отправьте криптовалюту</h2>
+          <div class="wallet-address">
+            <label>Адрес кошелька blueberry:</label>
+            <div class="address-box">
+              <code id="wallet-address">--</code>
+              <button class="btn-copy" id="btn-copy" type="button">📋</button>
+            </div>
+          </div>
+          <div class="warning-box">
+            <span class="warning-icon">⚠️</span>
+            <div><strong>Важно!</strong><p>Отправляйте только в выбранной сети!</p></div>
+          </div>
+          <div class="transaction-details">
+            <div class="detail-row"><span>К отправке:</span><span id="send-amount">--</span></div>
+            <div class="detail-row"><span>На баланс:</span><span id="receive-amount">-- ₽</span></div>
+            <div class="detail-row"><span>Заработок:</span><span id="earn-amount">+-- ₽</span></div>
+          </div>
+          <div class="form-group"><label>Хеш транзакции (TX Hash)</label><input type="text" id="tx-hash" placeholder="Вставьте хеш транзакции"></div>
+          <button class="btn btn-primary btn-full" id="btn-confirm-deposit" type="button">Я отправил</button>
+          <button class="btn btn-secondary btn-full" id="btn-cancel-deposit" type="button" style="margin-top:10px;">Отменить</button>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title">История пополнений</h2>
+          <div id="deposits-list" class="orders-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ WITHDRAW ============ -->
+      <div id="page-withdraw" class="page">
+        <div class="card">
+          <h2 class="card-title">💸 Вывести средства</h2>
+          <div class="info-box"><p>⚠️ Для вывода может потребоваться выписка со счёта или видео из личного кабинета банка</p></div>
+          <div class="form-group">
+            <label>Сумма вывода (₽)</label>
+            <div class="input-wrapper">
+              <input type="number" id="withdraw-amount" placeholder="0.00" min="1000" step="0.01">
+              <span class="input-suffix">₽</span>
+            </div>
+            <div class="min-amount">Минимум: 1 000 ₽ | Доступно: <span id="withdraw-balance">0</span> ₽</div>
+          </div>
+          <div class="form-group">
+            <label>Выберите реквизиты</label>
+            <select id="withdraw-requisite" class="input-select"><option value="">Выберите реквизит</option></select>
+          </div>
+          <button class="btn btn-primary btn-full" id="btn-withdraw" type="button">Запросить вывод</button>
+        </div>
+        <div class="card">
+          <h2 class="card-title">История выводов</h2>
+          <div id="withdrawals-list" class="orders-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ REQUISITES ============ -->
+      <div id="page-requisites" class="page">
+        <div class="card">
+          <h2 class="card-title">💳 Реквизиты для вывода</h2>
+          <p style="color:var(--txt-3);font-size:14px;margin-bottom:16px;">Добавьте реквизиты и включите их, чтобы администратор видел их для ордеров.</p>
+          <div class="form-group"><label>ФИО</label><input type="text" id="req-name" placeholder="Иванов Иван Иванович"></div>
+          <div class="form-group"><label>Телефон / СБП</label><input type="tel" id="req-phone" placeholder="+7 (999) 123-45-67"></div>
+          <div class="form-group"><label>Банк</label><input type="text" id="req-bank" placeholder="Сбербанк / Т-Банк / ВТБ"></div>
+          <button class="btn btn-primary btn-full" id="btn-save-req" type="button">Добавить реквизит</button>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Мои реквизиты</h2>
+          <div id="requisites-list"></div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">📦 Архив реквизитов</h2>
+          <div id="archived-requisites-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ NOTIFICATIONS ============ -->
+      <div id="page-notifications" class="page">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <h2 class="card-title" style="margin:0;">🔔 Уведомления</h2>
+            <button class="btn btn-small btn-secondary" id="btn-mark-read">Прочитать все</button>
+          </div>
+          <div id="notifications-list"></div>
+        </div>
+      </div>
+
+      <!-- ============ PROFILE ============ -->
+      <div id="page-profile" class="page">
+        <div class="card">
+          <div class="profile-info">
+            <div class="profile-avatar">👤</div>
+            <div class="profile-name" id="profile-name">--</div>
+            <div class="profile-id" id="profile-id">--</div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 class="card-title">Смена пароля</h2>
+          <div class="form-group"><input type="password" id="current-pass" placeholder="Текущий пароль"></div>
+          <div class="form-group"><input type="password" id="new-pass" placeholder="Новый пароль"></div>
+          <button class="btn btn-small btn-primary" id="btn-change-pass" type="button">Сменить</button>
+        </div>
+        <div class="card">
+          <h2 class="card-title">🔐 Безопасность</h2>
+          <div class="security-item">
+            <div class="security-info">
+              <span class="security-icon">🔐</span>
+              <div>
+                <div class="security-title">blueberry 2FA Shield</div>
+                <div class="security-status" id="2fa-status">Не подключена</div>
+              </div>
+            </div>
+            <button class="btn btn-small btn-primary" id="btn-2fa" type="button">Настроить</button>
+          </div>
+          <div id="2fa-setup" style="display:none;margin-top:16px;text-align:center;">
+            <div class="qr-container"><img id="qr-code" src="" alt="QR"></div>
+            <div class="secret-key"><label>Ключ:</label><code id="secret-key">--</code></div>
+            <div class="form-group" style="max-width:240px;margin:0 auto 12px;">
+              <input type="text" id="totp-code" placeholder="000 000" maxlength="6" style="text-align:center;">
+            </div>
+            <button class="btn btn-primary btn-full" id="btn-verify-2fa" type="button">Подтвердить</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+</div>
+
+<script>
+/* ==========================================================================
+   THEME MANAGEMENT
+   ========================================================================== */
+function toggleTheme(){
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('bb-theme-client', next);
+  updateThemeIcons(next);
+  if (window.lucide) lucide.createIcons();
+}
+
+function updateThemeIcons(theme){
+  document.querySelectorAll('#client-theme-icon, .theme-btn-toggle i').forEach(i => {
+    i.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+  });
+}
+
+const savedTheme = localStorage.getItem('bb-theme-client') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateThemeIcons(savedTheme);
+  if (window.lucide) lucide.createIcons();
+});
+</script>
+<script src="/js/app.js"></script>
 </body>
 </html>
