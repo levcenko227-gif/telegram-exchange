@@ -9,9 +9,43 @@ const speakeasy = require('speakeasy');
 const QRCode = require('qrcode');
 const Database = require('better-sqlite3');
 const fs = require('fs');
+const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ==================== TELEGRAM BOT ====================
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_ADMIN_ID = process.env.TELEGRAM_ADMIN_ID || '';
+let tgBot = null;
+
+if (TELEGRAM_BOT_TOKEN) {
+  tgBot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
+  console.log('Telegram bot connected');
+} else {
+  console.log('Telegram bot not configured (no TELEGRAM_BOT_TOKEN)');
+}
+
+async function sendVerificationToTelegram(userId, username, internalId, files, phone, telegram, social) {
+  if (!tgBot || !TELEGRAM_ADMIN_ID) return false;
+  const caption = `Verifikacija ot ${username} (${internalId})\nTelefon: ${phone}\nTelegram: ${telegram || '-'}\nSocseti: ${social || '-'}\nID: ${userId}`;
+  try {
+    if (files.selfie) {
+      const buf = Buffer.from(files.selfie.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Selfi\n${caption}` });
+    }
+    if (files.passport) {
+      const buf = Buffer.from(files.passport.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Pasport\n${username} (${internalId})` });
+    }
+    if (files.registration) {
+      const buf = Buffer.from(files.registration.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Registracija\n${username} (${internalId})` });
+    }
+    await tgBot.sendMessage(TELEGRAM_ADMIN_ID, `Dokumenty polucheny ot ${username} (${internalId})\nPodtverdite v admin-paneli`);
+    return true;
+  } catch (e) { console.error('Telegram error:', e.message); return false; }
+}
 
 // ==================== SSE (Server-Sent Events) ====================
 const sseClients = new Set(); // admin clients
@@ -93,7 +127,6 @@ db.exec(`
     telegram_id TEXT,
     username TEXT UNIQUE,
     password_hash TEXT,
-    raw_password TEXT,
     first_name TEXT,
     balance_rub REAL DEFAULT 0,
     total_deposited_usdt REAL DEFAULT 0,
@@ -110,7 +143,6 @@ db.exec(`
     withdrawal_pending REAL DEFAULT 0,
     failed_attempts INTEGER DEFAULT 0,
     lock_until INTEGER DEFAULT 0,
-    markup_percent REAL DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -236,17 +268,15 @@ db.exec(`
   );
 `);
 
-// migrations for existing DBs
-try { db.prepare('ALTER TABLE users ADD COLUMN held_rub REAL DEFAULT 0').run(); } catch (e) {}
-try { db.prepare('ALTER TABLE users ADD COLUMN withdrawal_pending REAL DEFAULT 0').run(); } catch (e) {}
-try { db.prepare('ALTER TABLE requisites ADD COLUMN is_archived INTEGER DEFAULT 0').run(); } catch (e) {}
+// Add held_rub column if it doesn't exist (migration for existing DBs)
+try { db.prepare('ALTER TABLE users ADD COLUMN held_rub REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
+try { db.prepare('ALTER TABLE users ADD COLUMN withdrawal_pending REAL DEFAULT 0').run(); } catch (e) { /* column already exists */ }
+try { db.prepare('ALTER TABLE requisites ADD COLUMN is_archived INTEGER DEFAULT 0').run(); } catch (e) { /* column already exists */ }
 try { db.prepare('ALTER TABLE appeals ADD COLUMN receipt_url TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE appeals ADD COLUMN bank_statement_url TEXT').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE appeals ADD COLUMN client_action TEXT DEFAULT NULL').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE appeals ADD COLUMN requisite_id INTEGER DEFAULT 0').run(); } catch (e) {}
 try { db.prepare('ALTER TABLE users ADD COLUMN actions_restricted INTEGER DEFAULT 0').run(); } catch (e) {}
-try { db.prepare('ALTER TABLE users ADD COLUMN raw_password TEXT').run(); } catch (e) {}
-try { db.prepare('ALTER TABLE users ADD COLUMN markup_percent REAL DEFAULT NULL').run(); } catch (e) {}
 
 const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 insertSetting.run('base_rate', '80');
@@ -255,7 +285,7 @@ insertSetting.run('min_deposit_usdt', '20');
 insertSetting.run('min_withdrawal_rub', '1000');
 insertSetting.run('support_contact', '@support');
 insertSetting.run('support_contacts', JSON.stringify([{name:'Telegram',value:'@support',enabled:true},{name:'WhatsApp',value:'',enabled:false},{name:'Email',value:'',enabled:false}]));
-insertSetting.run('app_name', 'blueberry');
+insertSetting.run('app_name', 'CryptoSwaap');
 insertSetting.run('order_timer_minutes', '15');
 insertSetting.run('networks', JSON.stringify([
   { id: 'TRC-20', name: 'USDT TRC-20 (Tron)', coin: 'USDT', enabled: true, wallet: 'YOUR_TRC20_WALLET' },
@@ -279,7 +309,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'blueberry-secret-' + Date.now(),
+  secret: process.env.SESSION_SECRET || 'cryptoswaap-secret-' + Date.now(),
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
@@ -288,21 +318,7 @@ app.use(session({
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Слишком много попыток.' } });
 
 function getSetting(key) { const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key); return r ? r.value : null; }
-
-function getCurrentRate(userId) {
-  const b = parseFloat(getSetting('base_rate') || '80');
-  let m = parseFloat(getSetting('markup_percent') || '5');
-  
-  if (userId) {
-    const user = db.prepare('SELECT markup_percent FROM users WHERE id = ?').get(userId);
-    if (user && user.markup_percent !== null && user.markup_percent !== undefined) {
-      m = parseFloat(user.markup_percent);
-    }
-  }
-  
-  return { base: b, markup: m, final: b * (1 + m / 100) };
-}
-
+function getCurrentRate() { const b = parseFloat(getSetting('base_rate') || '80'); const m = parseFloat(getSetting('markup_percent') || '5'); return { base: b, markup: m, final: b * (1 + m / 100) }; }
 function getNetworks() { try { return JSON.parse(getSetting('networks') || '[]'); } catch { return []; } }
 function isUserAuth(req, res, next) { if (req.session?.userId) return next(); return res.status(401).json({ error: 'Не авторизован' }); }
 function isAdminAuth(req, res, next) { if (req.session?.adminId) return next(); return res.status(401).json({ error: 'Не авторизован' }); }
@@ -312,7 +328,7 @@ function genInternalId() {
   const len = Math.floor(Math.random() * 3) + 4; // 4, 5, or 6 digits
   const min = Math.pow(10, len - 1);
   const max = Math.pow(10, len) - 1;
-  return 'BB-' + (Math.floor(Math.random() * (max - min + 1)) + min);
+  return 'CS-' + (Math.floor(Math.random() * (max - min + 1)) + min);
 }
 function genOrderNum() { return 'ORD-' + Date.now().toString(36).toUpperCase() + '-' + genStr(4).toUpperCase(); }
 function genAppealNum() { return 'APL-' + Date.now().toString(36).toUpperCase() + '-' + genStr(4).toUpperCase(); }
@@ -357,7 +373,7 @@ app.post('/api/user/change-password', isUserAuth, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (!bcrypt.compareSync(current_password, user.password_hash)) return res.status(400).json({ error: 'Неверный пароль' });
   if (new_password.length < 6) return res.status(400).json({ error: 'Минимум 6 символов' });
-  db.prepare('UPDATE users SET password_hash = ?, raw_password = ?, password_changed = 1 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), new_password, req.session.userId);
+  db.prepare('UPDATE users SET password_hash = ?, password_changed = 1 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.session.userId);
   res.json({ success: true });
 });
 
@@ -379,14 +395,22 @@ app.post('/api/user/toggle-online', isUserAuth, (req, res) => {
 });
 
 // ==================== VERIFICATION ====================
-app.post('/api/verification/submit', isUserAuth, (req, res) => {
+app.post('/api/verification/submit', isUserAuth, async (req, res) => {
   const { selfie_url, passport_photo_url, passport_registration_url, phone, telegram_link, social_links } = req.body;
   if (!selfie_url || !passport_photo_url || !phone) return res.status(400).json({ error: 'Заполните обязательные поля' });
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
+  // Save minimal record (no photos in DB)
   const result = db.prepare('INSERT INTO verification_requests (user_id, selfie_url, passport_photo_url, passport_registration_url, phone, telegram_link, social_links) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(req.session.userId, selfie_url, passport_photo_url, passport_registration_url || '', phone, telegram_link || '', social_links || '');
-  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`📋 Новая заявка на верификацию от пользователя #${req.session.userId}`, 'verification');
+    .run(req.session.userId, '[sent_to_telegram]', '[sent_to_telegram]', passport_registration_url ? '[sent_to_telegram]' : '', phone, telegram_link || '', social_links || '');
+  // Send photos to Telegram
+  const sent = await sendVerificationToTelegram(
+    req.session.userId, user.username, user.internal_id,
+    { selfie: selfie_url, passport: passport_photo_url, registration: passport_registration_url },
+    phone, telegram_link, social_links
+  );
+  db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`📋 Новая заявка на верификацию от ${user.username} [${user.internal_id}]`, 'verification');
   sendSSEToAdmin('new_verification', { userId: req.session.userId });
-  res.json({ success: true, request_id: result.lastInsertRowid });
+  res.json({ success: true, request_id: result.lastInsertRowid, sent_to_telegram: sent });
 });
 
 app.get('/api/verification/status', isUserAuth, (req, res) => {
@@ -396,8 +420,7 @@ app.get('/api/verification/status', isUserAuth, (req, res) => {
 
 // ==================== RATE & NETWORKS ====================
 app.get('/api/exchange/rate', (req, res) => {
-  const userId = req.session.userId;
-  const rate = getCurrentRate(userId);
+  const rate = getCurrentRate();
   const networks = getNetworks().filter(n => n.enabled);
   res.json({ base_rate: rate.base, markup_percent: rate.markup, final_rate: rate.final.toFixed(2), networks });
 });
@@ -415,9 +438,11 @@ app.get('/api/orders', isUserAuth, (req, res) => {
   orders.forEach(o => {
     if (o.status === 'active' && o.timer_ends_at && new Date(o.timer_ends_at) < now) {
       db.prepare("UPDATE orders SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(o.id);
+      // Return to withdrawal_pending
       db.prepare('UPDATE users SET withdrawal_pending = withdrawal_pending + ? WHERE id = ?').run(o.amount_rub, req.session.userId);
       o.status = 'expired';
     }
+    // Attach requisite info
     o.requisite = activeReq ? { bank: activeReq.bank, name: activeReq.name, phone: activeReq.phone } : null;
   });
   res.json(orders);
@@ -428,11 +453,14 @@ app.post('/api/orders/:id/complete', isUserAuth, (req, res) => {
   if (!order) return res.status(404).json({ error: 'Не найден' });
   if (order.status !== 'active') return res.status(400).json({ error: 'Ордер не активен' });
   db.prepare("UPDATE orders SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  // Smart deduction: first from withdrawal_pending, excess from balance
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   const wp = user.withdrawal_pending || 0;
   if (wp >= order.amount_rub) {
+    // All from withdrawal_pending
     db.prepare('UPDATE users SET withdrawal_pending = MAX(0, withdrawal_pending - ?), held_rub = MAX(0, held_rub - ?) WHERE id = ?').run(order.amount_rub, order.amount_rub, req.session.userId);
   } else {
+    // Partial from withdrawal_pending, rest from balance
     const excess = order.amount_rub - wp;
     db.prepare('UPDATE users SET withdrawal_pending = 0, held_rub = MAX(0, held_rub - ?), balance_rub = MAX(0, balance_rub - ?) WHERE id = ?').run(order.amount_rub, excess, req.session.userId);
   }
@@ -448,6 +476,7 @@ app.post('/api/orders/:id/fail', isUserAuth, (req, res) => {
   if (!order) return res.status(404).json({ error: 'Не найден' });
   if (order.status !== 'active') return res.status(400).json({ error: 'Ордер не активен' });
   db.prepare("UPDATE orders SET status = 'failed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  // Return to withdrawal_pending (order failed, amount goes back to withdrawal pool)
   db.prepare('UPDATE users SET withdrawal_pending = withdrawal_pending + ? WHERE id = ?').run(order.amount_rub, req.session.userId);
   db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(req.session.userId, `❌ Ордер ${order.order_number} не выполнен.`, 'error');
   sendSSEToAdmin('order_failed', { userId: req.session.userId, orderId: req.params.id });
@@ -491,7 +520,7 @@ app.post('/api/deposit/create', isUserAuth, (req, res) => {
   if (!tx_hash || tx_hash.length < 10) return res.status(400).json({ error: 'Введите хеш транзакции' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId);
   if (user.is_blocked) return res.status(403).json({ error: 'Аккаунт заблокирован' });
-  const rate = getCurrentRate(req.session.userId);
+  const rate = getCurrentRate();
   const amountRub = amount_usdt * rate.final;
   const earnedRub = amount_usdt * rate.base * (rate.markup / 100);
   const networks = getNetworks();
@@ -524,6 +553,7 @@ app.post('/api/withdrawal/create', isUserAuth, (req, res) => {
   if (!req_data) return res.status(400).json({ error: 'Выберите реквизиты' });
   const cancelDeadline = new Date(Date.now() + 30 * 1000).toISOString();
   const result = db.prepare(`INSERT INTO withdrawals (user_id, amount_rub, requisite_id, status) VALUES (?, ?, ?, 'pending')`).run(req.session.userId, amount_rub, requisite_id);
+  // Hold the amount (balance stays same, available = balance - held)
   db.prepare('UPDATE users SET held_rub = held_rub + ?, withdrawal_pending = withdrawal_pending + ? WHERE id = ?').run(amount_rub, amount_rub, req.session.userId);
   db.prepare('INSERT INTO notifications (message, type) VALUES (?, ?)').run(`💸 Вывод: ${amount_rub} ₽ от ${user.username} [${user.internal_id}]. ${req_data.bank}, ${req_data.name}`, 'withdrawal');
   sendSSEToAdmin('new_withdrawal', { userId: req.session.userId, amount_rub });
@@ -534,6 +564,7 @@ app.post('/api/withdrawal/:id/cancel', isUserAuth, (req, res) => {
   const w = db.prepare('SELECT * FROM withdrawals WHERE id = ? AND user_id = ?').get(req.params.id, req.session.userId);
   if (!w) return res.status(404).json({ error: 'Не найден' });
   if (w.status !== 'pending') return res.status(400).json({ error: 'Нельзя отменить' });
+  // Release held amount
   db.prepare("UPDATE withdrawals SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
   db.prepare('UPDATE users SET held_rub = MAX(0, held_rub - ?), withdrawal_pending = MAX(0, withdrawal_pending - ?) WHERE id = ?').run(w.amount_rub, w.amount_rub, req.session.userId);
   sendSSEToAdmin('withdrawal_cancelled', { userId: req.session.userId, withdrawalId: req.params.id });
@@ -627,8 +658,9 @@ app.get('/api/user/stats', isUserAuth, (req, res) => {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const lastWeekStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  
+  // Stats show ORDER amounts (completed orders), not deposits
   const getOrderStats = (from) => db.prepare("SELECT COALESCE(SUM(amount_rub),0) as rub, COUNT(*) as orders FROM orders WHERE user_id = ? AND status = 'completed' AND created_at >= ?").get(userId, from);
+  // Total earned still counts everything (deposits earned)
   const totalEarned = db.prepare("SELECT COALESCE(SUM(earned_rub),0) as t FROM deposits WHERE user_id = ? AND status = 'confirmed'").get(userId).t;
   const totalOrders = db.prepare("SELECT COUNT(*) as count FROM orders WHERE user_id = ? AND status = 'completed'").get(userId).count;
   res.json({
@@ -643,7 +675,7 @@ app.get('/api/user/stats', isUserAuth, (req, res) => {
 
 // ==================== 2FA ====================
 app.post('/api/2fa/setup', isUserAuth, async (req, res) => {
-  const secret = speakeasy.generateSecret({ name: 'blueberry', issuer: 'blueberry' });
+  const secret = speakeasy.generateSecret({ name: 'CryptoSwaap', issuer: 'CryptoSwaap' });
   db.prepare('UPDATE users SET totp_secret = ? WHERE id = ?').run(secret.base32, req.session.userId);
   try { const qr = await QRCode.toDataURL(secret.otpauth_url); res.json({ success: true, secret: secret.base32, qr_code: qr }); }
   catch (e) { res.status(500).json({ error: 'Ошибка QR' }); }
@@ -708,7 +740,7 @@ app.post('/api/admin/change-password', isAdminAuth, (req, res) => {
 
 // ==================== ADMIN 2FA ====================
 app.post('/api/admin/2fa/setup', isAdminAuth, async (req, res) => {
-  const secret = speakeasy.generateSecret({ name: 'blueberry Admin', issuer: 'blueberry' });
+  const secret = speakeasy.generateSecret({ name: 'CryptoSwaap Admin', issuer: 'CryptoSwaap' });
   db.prepare('UPDATE admin_users SET totp_secret = ? WHERE id = ?').run(secret.base32, req.session.adminId);
   try { const qr = await QRCode.toDataURL(secret.otpauth_url); res.json({ success: true, secret: secret.base32, qr_code: qr }); }
   catch (e) { res.status(500).json({ error: 'Ошибка' }); }
@@ -926,6 +958,7 @@ app.post('/api/admin/appeals/:id/resolve', isAdminAuth, (req, res) => {
   const appeal = db.prepare('SELECT * FROM appeals WHERE id = ?').get(req.params.id);
   if (!appeal) return res.status(404).json({ error: 'Не найдена' });
   db.prepare("UPDATE appeals SET status = 'resolved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  // Resolved = deduct from balance and release held
   db.prepare('UPDATE users SET balance_rub = MAX(0, balance_rub - ?), held_rub = MAX(0, held_rub - ?) WHERE id = ?').run(appeal.amount_rub, appeal.amount_rub, appeal.user_id);
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(appeal.user_id);
   db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(appeal.user_id, `✅ Апелляция ${appeal.appeal_number} решена. Списано ${appeal.amount_rub} ₽`, 'success');
@@ -938,6 +971,7 @@ app.post('/api/admin/appeals/:id/reject', isAdminAuth, (req, res) => {
   const appeal = db.prepare('SELECT * FROM appeals WHERE id = ?').get(req.params.id);
   if (!appeal) return res.status(404).json({ error: 'Не найдена' });
   db.prepare("UPDATE appeals SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  // Rejected = return held (money returned to user)
   db.prepare('UPDATE users SET held_rub = MAX(0, held_rub - ?) WHERE id = ?').run(appeal.amount_rub, appeal.user_id);
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(appeal.user_id);
   db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(appeal.user_id, `❌ Апелляция ${appeal.appeal_number} отклонена. Средства разморожены.`, 'error');
@@ -993,6 +1027,7 @@ app.post('/api/admin/withdrawals/:id/confirm', isAdminAuth, (req, res) => {
   const w = db.prepare('SELECT * FROM withdrawals WHERE id = ?').get(req.params.id);
   if (!w) return res.status(404).json({ error: 'Не найден' });
   db.prepare("UPDATE withdrawals SET status = 'completed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
+  // Release remaining held (balance was already reduced by completed orders)
   db.prepare('UPDATE users SET held_rub = MAX(0, held_rub - ?), withdrawal_pending = MAX(0, withdrawal_pending - ?) WHERE id = ?').run(w.amount_rub, w.amount_rub, w.user_id);
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(w.user_id);
   sendSSEToUser(w.user_id, 'withdrawal_confirmed', { id: req.params.id });
@@ -1003,6 +1038,7 @@ app.post('/api/admin/withdrawals/:id/confirm', isAdminAuth, (req, res) => {
 app.post('/api/admin/withdrawals/:id/reject', isAdminAuth, (req, res) => {
   const w = db.prepare('SELECT * FROM withdrawals WHERE id = ?').get(req.params.id);
   if (w) {
+    // Return held to available (balance was never reduced for withdrawal)
     db.prepare('UPDATE users SET held_rub = MAX(0, held_rub - ?), withdrawal_pending = MAX(0, withdrawal_pending - ?) WHERE id = ?').run(w.amount_rub, w.amount_rub, w.user_id);
   }
   db.prepare("UPDATE withdrawals SET status = 'rejected', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(req.params.id);
@@ -1036,42 +1072,29 @@ app.post('/api/admin/users/:id/balance', isAdminAuth, (req, res) => {
   res.json({ success: true, new_balance: updated.balance_rub });
 });
 
-app.post('/api/admin/users/:id/markup', isAdminAuth, (req, res) => {
-  const { markup_percent } = req.body;
-  const val = (markup_percent === '' || markup_percent === null || markup_percent === undefined) ? null : parseFloat(markup_percent);
-  db.prepare('UPDATE users SET markup_percent = ? WHERE id = ?').run(val, req.params.id);
-  res.json({ success: true });
-});
-
 app.post('/api/admin/users/:id/block', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET is_blocked = 1 WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/unblock', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET is_blocked = 0 WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/restrict', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET actions_restricted = 1 WHERE id = ?').run(req.params.id); sendSSEToUser(parseInt(req.params.id), 'actions_restricted', {}); res.json({ success: true }); });
 app.post('/api/admin/users/:id/unrestrict', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET actions_restricted = 0 WHERE id = ?').run(req.params.id); sendSSEToUser(parseInt(req.params.id), 'actions_unrestricted', {}); res.json({ success: true }); });
 app.post('/api/admin/users/:id/reset-2fa', isAdminAuth, (req, res) => { db.prepare('UPDATE users SET totp_enabled = 0, totp_secret = NULL WHERE id = ?').run(req.params.id); res.json({ success: true }); });
 app.post('/api/admin/users/:id/reset-password', isAdminAuth, (req, res) => {
-  const { password } = req.body;
-  const new_password = password || genPass(8);
-  db.prepare('UPDATE users SET password_hash = ?, raw_password = ?, password_changed = 0 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), new_password, req.params.id);
+  const new_password = genPass(8);
+  db.prepare('UPDATE users SET password_hash = ?, password_changed = 0 WHERE id = ?').run(bcrypt.hashSync(new_password, 10), req.params.id);
   res.json({ success: true, new_password });
 });
 
 app.post('/api/admin/create-user', isAdminAuth, (req, res) => {
-  const { username, password, custom_username, custom_password } = req.body;
-  const final_username = username || custom_username || 'user_' + genStr(6);
-  const final_password = password || custom_password || genPass(8);
-  
-  if (final_username.length < 3) return res.status(400).json({ error: 'Логин минимум 3 символа' });
-  if (final_password.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
-  
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(final_username);
+  const { custom_username, custom_password } = req.body;
+  let username = custom_username || 'user_' + genStr(6);
+  let password = custom_password || genPass(8);
+  if (username.length < 3) return res.status(400).json({ error: 'Логин минимум 3 символа' });
+  if (password.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
   if (existing) return res.status(400).json({ error: 'Логин занят' });
-  
-  const hash = bcrypt.hashSync(final_password, 10);
+  const hash = bcrypt.hashSync(password, 10);
   const internalId = genInternalId();
-  const result = db.prepare('INSERT INTO users (internal_id, username, password_hash, raw_password, first_name, is_verified) VALUES (?, ?, ?, ?, ?, 0)')
-    .run(internalId, final_username, hash, final_password, final_username);
-    
-  res.json({ success: true, user: { id: result.lastInsertRowid, internal_id: internalId, username: final_username, password: final_password, balance_rub: 0 } });
+  const result = db.prepare('INSERT INTO users (internal_id, username, password_hash, first_name, is_verified) VALUES (?, ?, ?, ?, 0)').run(internalId, username, hash, username);
+  res.json({ success: true, user: { id: result.lastInsertRowid, internal_id: internalId, username, password, balance_rub: 0 } });
 });
 
 // ==================== ADMIN NOTIFICATIONS ====================
@@ -1121,7 +1144,7 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 blueberry запущен на http://localhost:${PORT}`);
+  console.log(`🚀 CryptoSwaap запущен на http://localhost:${PORT}`);
   console.log(`📱 Приложение: http://localhost:${PORT}`);
   console.log(`🔧 Админка: http://localhost:${PORT}/admin`);
 });
