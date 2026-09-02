@@ -35,10 +35,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-create-admin')?.addEventListener('click', () => openModal('create-admin-modal'));
         document.getElementById('btn-confirm-create-admin')?.addEventListener('click', createAdmin);
 
-        document.getElementById('settings-form')?.addEventListener('submit', saveSettings);
-        document.getElementById('btn-save-networks')?.addEventListener('click', saveNetworks);
-        document.getElementById('btn-save-contacts')?.addEventListener('click', saveContacts);
-
         document.getElementById('btn-notifications')?.addEventListener('click', toggleNotifications);
         document.getElementById('btn-mark-read')?.addEventListener('click', markNotificationsRead);
 
@@ -837,22 +833,21 @@ async function loadSettings() {
     try {
         const res = await fetch('/api/admin/settings');
         const s = await res.json();
-
-        setVal('s-app_name', s.app_name || 'blueberry');
         setVal('s-base_rate', s.base_rate || '');
         setVal('s-markup_percent', s.markup_percent || '');
         setVal('s-min_deposit_usdt', s.min_deposit_usdt || '');
         setVal('s-min_withdrawal_rub', s.min_withdrawal_rub || '');
         setVal('s-order_timer_minutes', s.order_timer_minutes || '');
         setVal('s-support_contact', s.support_contact || '');
-
         calculateFinalRatePreview();
-
-        currentNetworks = typeof s.networks === 'string' ? JSON.parse(s.networks) : (s.networks || []);
-        renderNetworksEditor();
-
-        currentSupportContacts = typeof s.support_contacts === 'string' ? JSON.parse(s.support_contacts) : (s.support_contacts || []);
-        renderSupportContactsEditor();
+        try {
+            const networks = typeof s.networks === 'string' ? JSON.parse(s.networks) : (s.networks || []);
+            const container = document.getElementById('networks-list');
+            if (container) {
+                container.innerHTML = networks.map((n, i) => '<div style="padding:12px;background:var(--bg-elevated);border-radius:var(--r-md);margin:8px 0;display:flex;justify-content:space-between;align-items:center;border:1px solid var(--brd-default);"><div><strong style="color:var(--accent);">' + (n.coin||'USDT') + ' / ' + n.id + '</strong> — ' + (n.name||'') + '<br><span style="font-size:12px;color:var(--txt-3);word-break:break-all;">' + (n.wallet||'') + '</span></div><div style="display:flex;gap:8px;align-items:center;"><label style="font-size:12px;cursor:pointer;"><input type="checkbox" id="net-enabled-' + i + '" ' + (n.enabled?'checked':'') + '> Вкл</label><button class="btn btn-logout btn-small" onclick="deleteNetwork(' + i + ')"><i data-lucide="trash-2"></i></button></div></div>').join('');
+                if (window.lucide) lucide.createIcons();
+            }
+        } catch (e) {}
     } catch (e) { console.error('Settings error', e); }
 }
 
@@ -861,79 +856,54 @@ function setVal(id, v) { const el = document.getElementById(id); if (el) el.valu
 function calculateFinalRatePreview() {
     const base = parseFloat(document.getElementById('s-base_rate')?.value) || 0;
     const markup = parseFloat(document.getElementById('s-markup_percent')?.value) || 0;
-    const finalRate = base * (1 + markup / 100);
     const el = document.getElementById('final-rate');
-    if (el) el.textContent = `${finalRate.toFixed(2)} ₽`;
+    if (el) el.textContent = (base * (1 + markup / 100)).toFixed(2) + ' ₽';
 }
 
-async function saveSettings(e) {
-    e.preventDefault();
-    const settings = {
-        app_name: document.getElementById('s-app_name').value,
-        base_rate: parseFloat(document.getElementById('s-base_rate').value),
-        markup_percent: parseFloat(document.getElementById('s-markup_percent').value),
-        min_deposit_usdt: parseFloat(document.getElementById('s-min_deposit_usdt').value),
-        min_withdrawal_rub: parseFloat(document.getElementById('s-min_withdrawal_rub').value),
-        order_timer_minutes: parseInt(document.getElementById('s-order_timer_minutes').value),
-        support_contact: document.getElementById('s-support_contact').value
-    };
-
+async function saveSingleSetting(key, inputId) {
+    const value = document.getElementById(inputId).value;
     try {
-        for (const [key, value] of Object.entries(settings)) {
-            await fetch('/api/admin/settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key, value })
-            });
-        }
-        notify('Системные настройки Blueberry сохранены', 'success');
-        calculateFinalRatePreview();
-    } catch (e) { notify('Ошибка сохранения настроек', 'error'); }
+        const res = await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
+        const data = await res.json();
+        if (data.success) { notify('Сохранено!', 'success'); loadSettings(); }
+        else notify(data.error || 'Ошибка', 'error');
+    } catch (e) { notify('Ошибка', 'error'); }
 }
 
-function renderNetworksEditor() {
-    const container = document.getElementById('networks-list');
-    if (!container) return;
-    container.innerHTML = currentNetworks.map((n, idx) => `
-        <div style="display:grid;grid-template-columns:90px 100px 1fr 40px;gap:8px;align-items:center;margin-bottom:8px;">
-            <input type="text" class="fi" value="${n.coin || 'USDT'}" onchange="currentNetworks[${idx}].coin=this.value" placeholder="Coin">
-            <input type="text" class="fi" value="${n.id || ''}" onchange="currentNetworks[${idx}].id=this.value" placeholder="TRC20">
-            <input type="text" class="fi" value="${n.wallet || ''}" onchange="currentNetworks[${idx}].wallet=this.value" placeholder="Адрес кошелька">
-            <button class="btn btn-logout btn-small" onclick="currentNetworks.splice(${idx},1);renderNetworksEditor()"><i data-lucide="x"></i></button>
-        </div>`).join('') +
-        `<button class="btn btn-ghost btn-small" style="margin-top:6px;" onclick="currentNetworks.push({coin:'USDT',id:'TRC20',wallet:''});renderNetworksEditor()"><i data-lucide="plus"></i> Добавить сеть</button>`;
-    if (window.lucide) lucide.createIcons();
+async function addNewNetwork() {
+    const coin = document.getElementById('new-net-coin').value.trim();
+    const id = document.getElementById('new-net-id').value.trim();
+    const name = document.getElementById('new-net-name').value.trim();
+    const wallet = document.getElementById('new-net-wallet').value.trim();
+    if (!coin || !id || !wallet) return notify('Заполните монету, сеть и адрес', 'error');
+    try {
+        const res = await fetch('/api/admin/settings');
+        const s = await res.json();
+        let networks = [];
+        try { networks = typeof s.networks === 'string' ? JSON.parse(s.networks) : (s.networks || []); } catch (e) {}
+        networks.push({ id, name: name || coin + ' ' + id, coin, enabled: true, wallet });
+        await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'networks', value: JSON.stringify(networks) }) });
+        notify('Сеть добавлена!', 'success');
+        document.getElementById('new-net-coin').value = '';
+        document.getElementById('new-net-id').value = '';
+        document.getElementById('new-net-name').value = '';
+        document.getElementById('new-net-wallet').value = '';
+        loadSettings();
+    } catch (e) { notify('Ошибка', 'error'); }
 }
 
-async function saveNetworks() {
-    await fetch('/api/admin/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'networks', value: JSON.stringify(currentNetworks) })
-    });
-    notify('Сети и кошельки зафиксированы', 'success');
-}
-
-function renderSupportContactsEditor() {
-    const container = document.getElementById('support-contacts-list');
-    if (!container) return;
-    container.innerHTML = currentSupportContacts.map((c, idx) => `
-        <div style="display:grid;grid-template-columns:120px 1fr 40px;gap:8px;align-items:center;margin-bottom:8px;">
-            <input type="text" class="fi" value="${c.label || ''}" onchange="currentSupportContacts[${idx}].label=this.value" placeholder="Метка">
-            <input type="text" class="fi" value="${c.value || ''}" onchange="currentSupportContacts[${idx}].value=this.value" placeholder="Ссылка">
-            <button class="btn btn-logout btn-small" onclick="currentSupportContacts.splice(${idx},1);renderSupportContactsEditor()"><i data-lucide="x"></i></button>
-        </div>`).join('') +
-        `<button class="btn btn-ghost btn-small" style="margin-top:6px;" onclick="currentSupportContacts.push({label:'Telegram',value:''});renderSupportContactsEditor()"><i data-lucide="plus"></i> Добавить контакт</button>`;
-    if (window.lucide) lucide.createIcons();
-}
-
-async function saveContacts() {
-    await fetch('/api/admin/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'support_contacts', value: JSON.stringify(currentSupportContacts) })
-    });
-    notify('Контакты поддержки сохранены', 'success');
+async function deleteNetwork(index) {
+    if (!confirm('Удалить сеть?')) return;
+    try {
+        const res = await fetch('/api/admin/settings');
+        const s = await res.json();
+        let networks = [];
+        try { networks = typeof s.networks === 'string' ? JSON.parse(s.networks) : (s.networks || []); } catch (e) {}
+        networks.splice(index, 1);
+        await fetch('/api/admin/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: 'networks', value: JSON.stringify(networks) }) });
+        notify('Сеть удалена!', 'success');
+        loadSettings();
+    } catch (e) { notify('Ошибка', 'error'); }
 }
 
 // ——— ADMIN SECURITY ———
