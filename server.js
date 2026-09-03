@@ -316,7 +316,7 @@ app.use(session({
   cookie: { secure: false, httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { error: 'Слишком много попыток.' } });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50, message: { error: 'Слишком много попыток. Подождите 15 минут.' } });
 
 function getSetting(key) { const r = db.prepare('SELECT value FROM settings WHERE key = ?').get(key); return r ? r.value : null; }
 function getCurrentRate() { const b = parseFloat(getSetting('base_rate') || '80'); const m = parseFloat(getSetting('markup_percent') || '5'); return { base: b, markup: m, final: b * (1 + m / 100) }; }
