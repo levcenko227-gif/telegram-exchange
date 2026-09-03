@@ -20,29 +20,119 @@ const TELEGRAM_ADMIN_ID = process.env.TELEGRAM_ADMIN_ID || '';
 let tgBot = null;
 
 if (TELEGRAM_BOT_TOKEN) {
-  tgBot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: false });
+  tgBot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
   console.log('Telegram bot connected');
+  
+  tgBot.on('callback_query', async (query) => {
+    const data = query.data;
+    const chatId = query.message.chat.id;
+    if (chatId.toString() !== TELEGRAM_ADMIN_ID) {
+      await tgBot.answerCallbackQuery(query.id, { text: 'Нет доступа' });
+      return;
+    }
+    if (data.startsWith('approve_')) {
+      const verId = data.replace('approve_', '');
+      try {
+        db.prepare("UPDATE verification_requests SET status = 'approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(verId);
+        const v = db.prepare('SELECT * FROM verification_requests WHERE id = ?').get(verId);
+        if (v) {
+          db.prepare('UPDATE users SET is_verified = 1 WHERE id = ?').run(v.user_id);
+          db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(v.user_id, '✅ Верификация пройдена!', 'success');
+          sendSSEToUser(v.user_id, 'verification_approved', {});
+        }
+        await tgBot.answerCallbackQuery(query.id, { text: '✅ Одобрена!' });
+        await tgBot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
+        await tgBot.sendMessage(chatId, `✅ Верификация #${verId} одобрена`);
+      } catch (e) { await tgBot.answerCallbackQuery(query.id, { text: 'Ошибка' }); }
+    }
+    if (data.startsWith('reject_')) {
+      const verId = data.replace('reject_', '');
+      try {
+        db.prepare("UPDATE verification_requests SET status = 'rejected', admin_comment = 'Отклонено через Telegram', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(verId);
+        const v = db.prepare('SELECT * FROM verification_requests WHERE id = ?').get(verId);
+        if (v) {
+          db.prepare('INSERT INTO notifications (user_id, message, type) VALUES (?, ?, ?)').run(v.user_id, '❌ Верификация отклонена.', 'error');
+          sendSSEToUser(v.user_id, 'verification_rejected', { comment: 'Отклонено через Telegram' });
+        }
+        await tgBot.answerCallbackQuery(query.id, { text: '❌ Отклонена' });
+        await tgBot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: query.message.message_id });
+        await tgBot.sendMessage(chatId, `❌ Верификация #${verId} отклонена`);
+      } catch (e) { await tgBot.answerCallbackQuery(query.id, { text: 'Ошибка' }); }
+    }
+  });
+  
+  tgBot.onText(/\/start/, async (msg) => {
+    if (msg.chat.id.toString() !== TELEGRAM_ADMIN_ID) return;
+    await tgBot.sendMessage(msg.chat.id, '🫐 *blueberry* — Панель управления\n\n📋 /pending — Ожидают\n✅ /approved — Одобренные\n❌ /rejected — Отклонённые\n📊 /stats — Статистика', { parse_mode: 'Markdown' });
+  });
+  
+  tgBot.onText(/\/pending/, async (msg) => {
+    if (msg.chat.id.toString() !== TELEGRAM_ADMIN_ID) return;
+    const list = db.prepare("SELECT v.*, u.username, u.internal_id FROM verification_requests v JOIN users u ON v.user_id = u.id WHERE v.status = 'pending' ORDER BY v.created_at DESC").all();
+    if (!list.length) { await tgBot.sendMessage(msg.chat.id, '📋 Нет заявок'); return; }
+    for (const v of list) {
+      await tgBot.sendMessage(msg.chat.id,
+        `📋 *Заявка #${v.id}*\n\n👤 *${v.username}*\n🆔 \`${v.internal_id}\`\n📞 ${v.phone || '—'}\n📱 ${v.telegram_link || '—'}\n📅 ${new Date(v.created_at).toLocaleString('ru-RU')}`,
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '✅ Одобрить', callback_data: `approve_${v.id}` }, { text: '❌ Отклонить', callback_data: `reject_${v.id}` }]] } }
+      );
+    }
+  });
+  
+  tgBot.onText(/\/approved/, async (msg) => {
+    if (msg.chat.id.toString() !== TELEGRAM_ADMIN_ID) return;
+    const list = db.prepare("SELECT v.*, u.username, u.internal_id FROM verification_requests v JOIN users u ON v.user_id = u.id WHERE v.status = 'approved' ORDER BY v.updated_at DESC LIMIT 20").all();
+    if (!list.length) { await tgBot.sendMessage(msg.chat.id, '✅ Нет одобренных'); return; }
+    let text = '✅ *Одобренные:*\n\n';
+    for (const v of list) text += `• ${v.username} (${v.internal_id})\n`;
+    await tgBot.sendMessage(msg.chat.id, text, { parse_mode: 'Markdown' });
+  });
+  
+  tgBot.onText(/\/rejected/, async (msg) => {
+    if (msg.chat.id.toString() !== TELEGRAM_ADMIN_ID) return;
+    const list = db.prepare("SELECT v.*, u.username, u.internal_id FROM verification_requests v JOIN users u ON v.user_id = u.id WHERE v.status = 'rejected' ORDER BY v.updated_at DESC LIMIT 20").all();
+    if (!list.length) { await tgBot.sendMessage(msg.chat.id, '❌ Нет отклонённых'); return; }
+    let text = '❌ *Отклонённые:*\n\n';
+    for (const v of list) text += `• ${v.username} (${v.internal_id})\n`;
+    await tgBot.sendMessage(msg.chat.id, text, { parse_mode: 'Markdown' });
+  });
+  
+  tgBot.onText(/\/stats/, async (msg) => {
+    if (msg.chat.id.toString() !== TELEGRAM_ADMIN_ID) return;
+    const p = db.prepare("SELECT COUNT(*) as c FROM verification_requests WHERE status = 'pending'").get().c;
+    const a = db.prepare("SELECT COUNT(*) as c FROM verification_requests WHERE status = 'approved'").get().c;
+    const r = db.prepare("SELECT COUNT(*) as c FROM verification_requests WHERE status = 'rejected'").get().c;
+    const tu = db.prepare("SELECT COUNT(*) as c FROM users").get().c;
+    const ou = db.prepare("SELECT COUNT(*) as c FROM users WHERE is_online = 1").get().c;
+    await tgBot.sendMessage(msg.chat.id, `📊 *Статистика*\n\n👥 Пользователей: ${tu}\n🟢 Онлайн: ${ou}\n\n📋 Ожидают: ${p}\n✅ Одобрено: ${a}\n❌ Отклонено: ${r}`, { parse_mode: 'Markdown' });
+  });
+  
 } else {
-  console.log('Telegram bot not configured (no TELEGRAM_BOT_TOKEN)');
+  console.log('Telegram bot not configured');
 }
 
 async function sendVerificationToTelegram(userId, username, internalId, files, phone, telegram, social) {
   if (!tgBot || !TELEGRAM_ADMIN_ID) return false;
-  const caption = `Verifikacija ot ${username} (${internalId})\nTelefon: ${phone}\nTelegram: ${telegram || '-'}\nSocseti: ${social || '-'}\nID: ${userId}`;
+  const caption = `📋 *Новая заявка на верификацию*\n\n👤 *${username}*\n🆔 \`${internalId}\`\n📞 ${phone}\n📱 ${telegram || '—'}\n🌐 ${social || '—'}`;
   try {
     if (files.selfie) {
       const buf = Buffer.from(files.selfie.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Selfi\n${caption}` });
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `📸 *Селфи с паспортом*\n${caption}`, parse_mode: 'Markdown' });
     }
     if (files.passport) {
       const buf = Buffer.from(files.passport.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Pasport\n${username} (${internalId})` });
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `📄 *Паспорт*\n${username} (${internalId})`, parse_mode: 'Markdown' });
     }
     if (files.registration) {
       const buf = Buffer.from(files.registration.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `Registracija\n${username} (${internalId})` });
+      await tgBot.sendPhoto(TELEGRAM_ADMIN_ID, buf, { caption: `📄 *Регистрация*\n${username} (${internalId})`, parse_mode: 'Markdown' });
     }
-    await tgBot.sendMessage(TELEGRAM_ADMIN_ID, `Dokumenty polucheny ot ${username} (${internalId})\nPodtverdite v admin-paneli`);
+    const verRequest = db.prepare("SELECT id FROM verification_requests WHERE user_id = ? ORDER BY created_at DESC LIMIT 1").get(userId);
+    if (verRequest) {
+      await tgBot.sendMessage(TELEGRAM_ADMIN_ID,
+        `📋 *Документы получены от ${username} (${internalId})*\n\nНажмите кнопку или зайдите в админ-панель.`,
+        { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '✅ Одобрить', callback_data: `approve_${verRequest.id}` }, { text: '❌ Отклонить', callback_data: `reject_${verRequest.id}` }]] } }
+      );
+    }
     return true;
   } catch (e) { console.error('Telegram error:', e.message); return false; }
 }
